@@ -15,6 +15,9 @@ import {
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+import 'katex/dist/katex.min.css';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { LLMService } from '@/lib/llm';
 import { cn } from '@/lib/utils';
@@ -633,7 +636,10 @@ export default function Home() {
                         : "bg-[#1e1f20] text-[#e3e3e3] border border-[#28292a] rounded-tl-none"
                     )}>
                       <div className="prose prose-invert max-w-none prose-p:leading-relaxed prose-pre:bg-[#0d0d0d] prose-pre:p-4 prose-code:text-blue-300">
-                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        <ReactMarkdown 
+                          remarkPlugins={[remarkGfm, remarkMath]}
+                          rehypePlugins={[rehypeKatex]}
+                        >
                           {msg.content || (isLoading && msg.role === 'assistant' ? "..." : "")}
                         </ReactMarkdown>
                       </div>

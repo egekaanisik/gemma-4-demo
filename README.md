@@ -1,6 +1,8 @@
 # Gemma 4 Demo 🚀
 ### High-Performance • 100% On-Device • Privacy-First AI
 
+**[Live Demo: gemma.egekaan.dev](https://gemma.egekaan.dev)**
+
 This application is a high-performance, on-device AI chat demonstration powered by Google's **Gemma 4 E4B** model. It runs entirely in your browser using **WebGPU**, meaning no chat data ever leaves your device and no API keys are required.
 
 > [!IMPORTANT]

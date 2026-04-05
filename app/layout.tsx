@@ -1,0 +1,32 @@
+import type { Metadata } from 'next';
+import './globals.css'; // Global styles
+
+export const metadata: Metadata = {
+  title: 'Gemma 4 Demo',
+  description: 'A high-performance, private, on-device AI chat application featuring Gemma 4 E4B, running entirely in your browser with no data leaving your device.',
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'Gemma 4',
+  },
+  robots: {
+    index: false,
+    follow: false,
+  },
+};
+
+export const viewport = {
+  themeColor: '#b1c6fe',
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+};
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en">
+      <body suppressHydrationWarning>{children}</body>
+    </html>
+  );
+}

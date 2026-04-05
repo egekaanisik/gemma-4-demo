@@ -1,0 +1,23 @@
+{
+  "name": "Gemma 4 Demo",
+  "short_name": "Gemma 4",
+  "description": "A high-performance, private, on-device AI chat application featuring Gemma 4 E4B, running entirely in your browser with no data leaving your device.",
+  "start_url": "/",
+  "icons": [
+    {
+      "src": "/web-app-manifest-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/web-app-manifest-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "theme_color": "#b1c6fe",
+  "background_color": "#131314",
+  "display": "standalone"
+}

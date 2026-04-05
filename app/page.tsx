@@ -285,8 +285,9 @@ export default function Home() {
       const chatToProcess = (activeChatId ? chats.find(c => c.id === activeChatId) : null);
       const previousMessages = chatToProcess?.messages || [];
 
-      // Limit context to last 6 messages
-      const contextMessages = previousMessages.slice(-6);
+      // Limit context to last 14 messages for a balanced 7-turn 'memory'
+      // Provides deep conversational history while staying lightning fast on mobile and low-end PCs.
+      const contextMessages = previousMessages.slice(-14);
       const allMessages = [...contextMessages, userMessage];
 
       // System instructions for Gemma

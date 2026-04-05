@@ -3,7 +3,7 @@
 
 **[Live Demo: gemma.egekaan.dev](https://gemma.egekaan.dev)**
 
-This application is a high-performance, on-device AI chat demonstration powered by Google's **Gemma 4 E4B** model. It runs entirely in your browser using **WebGPU**, meaning no chat data ever leaves your device and no API keys are required.
+This application was built using **Google AI Studio** and **Antigravity**. It is a high-performance, on-device AI chat demonstration powered by Google's **Gemma 4 E4B** model. It runs entirely in your browser using **WebGPU**, meaning no chat data ever leaves your device and no API keys are required.
 
 > [!IMPORTANT]
 > This project is an independent demonstration and is not created, endorsed, or affiliated with Google or Google DeepMind.
@@ -23,6 +23,7 @@ This application is a high-performance, on-device AI chat demonstration powered 
 ## 🛠️ Tech Stack
 
 - **Framework**: [Next.js 16](https://nextjs.org/) (App Router & Turbopack)
+- **Development Platforms**: [Google AI Studio (Build Mode)](https://aistudio.google.com/apps) & [Antigravity](https://antigravity.google/)
 - **Model Interface**: [MediaPipe LLM Inference](https://developers.google.com/mediapipe/solutions/genai/llm_inference)
 - **Styling**: Vanilla CSS & Tailwind CSS 4.0
 - **Animations**: [Motion](https://motion.dev/)
@@ -34,7 +35,7 @@ This application is a high-performance, on-device AI chat demonstration powered 
 
 ### Prerequisites
 - Node.js (v18+)
-- A browser with **WebGPU** support (Chrome/Edge 113+, or recent Firefox/Safari with flags enabled).
+- A browser with WebGPU support (Check compatibility [here](https://caniuse.com/webgpu)).
 
 ### 1. Installation
 ```bash
@@ -57,7 +58,7 @@ npm start
 
 ## 📂 Project Structure
 
-- `app/`: Next.js 15 application routes and UI components.
+- `app/`: Next.js 16 application routes and UI components.
 - `lib/llm.ts`: Core service managing model loading, WebGPU initialization, and inference.
 - `scripts/generate-sw.js`: Automated build-time script to crawl assets and generate the PWA Service Worker.
 - `public/`: Static assets, including the PWA manifest and icons.

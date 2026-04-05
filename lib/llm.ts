@@ -183,7 +183,7 @@ export class LLMService {
         baseOptions: {
           modelAssetPath: localModelUrl,
         },
-        maxTokens: 1024,
+        maxTokens: 8192,
       });
 
       return this.instance;

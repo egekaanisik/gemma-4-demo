@@ -282,8 +282,8 @@ export default function Home() {
       const chatToProcess = (activeChatId ? chats.find(c => c.id === activeChatId) : null);
       const previousMessages = chatToProcess?.messages || [];
 
-      // Limit context to last 10 messages
-      const contextMessages = previousMessages.slice(-10);
+      // Limit context to last 6 messages
+      const contextMessages = previousMessages.slice(-6);
       const allMessages = [...contextMessages, userMessage];
 
       // System instructions for Gemma

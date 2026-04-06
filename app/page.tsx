@@ -586,31 +586,63 @@ export default function Home() {
       {/* Main Content */}
       <main className="flex-1 flex flex-col relative min-w-0">
         {/* Header */}
-        <header className="h-16 flex items-center px-4 md:px-6 border-b border-[#28292a] relative shrink-0">
-          <div className="flex items-center z-10">
-            <button
-              onClick={() => setIsSidebarOpen(true)}
-              className={cn(
-                "p-2 hover:bg-[#28292a] rounded-lg transition-opacity",
-                isSidebarOpen ? "opacity-0 pointer-events-none" : "opacity-100"
-              )}
-            >
-              <Menu size={24} />
-            </button>
+        <header className={cn(
+          "h-16 flex items-center px-4 md:px-6 relative shrink-0 transition-colors duration-300",
+          activeChat && activeChat.messages && activeChat.messages.length > 0 ? "border-b border-[#28292a]" : "border-b border-transparent"
+        )}>
+          <div className="flex items-center z-10 min-w-0">
+            <div className={cn(
+              "flex items-center transition-all duration-300 overflow-hidden",
+              isSidebarOpen ? "w-0 opacity-0" : "w-11 opacity-100 mr-2"
+            )}>
+              <button
+                onClick={() => setIsSidebarOpen(true)}
+                className="p-2 hover:bg-[#28292a] rounded-lg shrink-0"
+              >
+                <Menu size={24} />
+              </button>
+            </div>
+            {activeChat && activeChat.messages && activeChat.messages.length > 0 && (
+              <h1 className="hidden md:block text-sm md:text-base font-semibold text-[#e3e3e3] truncate whitespace-nowrap">
+                Gemma 4 Demo
+              </h1>
+            )}
           </div>
 
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <h1 className="text-lg md:text-xl font-medium text-[#e3e3e3] truncate px-12">Gemma 4 Demo</h1>
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none transition-opacity duration-300">
+            {activeChat && activeChat.messages && activeChat.messages.length > 0 && (
+              <h2 className="text-sm md:text-base font-medium text-[#9aa0a6] truncate px-32 md:px-48 animate-in fade-in slide-in-from-top-1 duration-500">
+                {activeChat.title}
+              </h2>
+            )}
           </div>
 
-          <div className="ml-auto z-10 flex items-center gap-2" />
+          <div className="ml-auto z-10 flex items-center gap-1">
+            {activeChat && activeChat.messages && activeChat.messages.length > 0 && (
+              <button
+                onClick={(e) => deleteChat(activeChat.id, e)}
+                disabled={activeChat.id === generatingChatId || isInitializing}
+                className={cn(
+                  "p-2 hover:bg-red-400/10 text-[#9aa0a6] hover:text-red-400 rounded-lg transition-all",
+                  (activeChat.id === generatingChatId || isInitializing) 
+                    ? "opacity-40 cursor-not-allowed text-zinc-500 grayscale" 
+                    : "opacity-100"
+                )}
+              >
+                <Trash2 size={20} />
+              </button>
+            )}
+          </div>
         </header>
 
         {/* Chat Area */}
-        <div className="flex-1 overflow-y-auto px-4 py-8 md:px-0">
-          <div className="max-w-3xl mx-auto space-y-8">
+        <div className={cn(
+          "flex-1 overflow-y-auto px-4 py-8 md:px-0",
+          (!activeChat || !activeChat.messages || activeChat.messages.length === 0) && "flex flex-col items-center justify-center"
+        )}>
+          <div className="max-w-3xl mx-auto space-y-8 w-full">
             {!activeChat || !activeChat.messages || activeChat.messages.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center text-center space-y-6 pt-20">
+              <div className="flex flex-col items-center justify-center text-center space-y-6">
                 <div className="w-24 h-24 bg-[#1e1f20] rounded-full flex items-center justify-center text-blue-400 shadow-xl border border-[#28292a]">
                   <GemmaIcon size={72} />
                 </div>

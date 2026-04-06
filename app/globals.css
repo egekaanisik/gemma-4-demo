@@ -1,3 +1,5 @@
+@import url("https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css");
+@import url("https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css");
 @import "tailwindcss";
 @import "tw-animate-css";
 
@@ -9,45 +11,100 @@
   .prose {
     @apply text-[#e3e3e3];
   }
+
   .prose p {
-    @apply mb-4 last:mb-0;
+    @apply mb-4 last:mb-0 leading-[1.6] overflow-visible;
   }
+
   .prose pre {
-    @apply rounded-lg overflow-x-auto my-4;
+    @apply !bg-[#000000] !p-4 !rounded-xl !border !border-[#28292a] !my-6 !overflow-x-auto !whitespace-pre;
+    
+    /* Modern standard scrollbar properties */
+    scrollbar-width: thin;
+    scrollbar-color: #3c4043 transparent;
+
+    /* Legacy WebKit properties */
+    &::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    &::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    &::-webkit-scrollbar-thumb {
+      background: #3c4043;
+      border-radius: 10px;
+    }
+    &::-webkit-scrollbar-thumb:hover {
+      background: #484c50;
+    }
   }
+
+  .prose code:not(pre code) {
+    @apply !bg-[#000000] !text-blue-300 !px-1.5 !py-0.5 !rounded-md !font-mono !text-[0.8em] !border !border-[#28292a];
+  }
+
+  .prose code.hljs,
+  .prose pre code {
+    background: transparent !important;
+  }
+
   .prose code {
-    @apply font-mono text-xs;
+    @apply font-mono;
   }
+
   .prose ul {
-    @apply list-disc list-inside mb-4 space-y-1;
+    @apply !list-disc !list-outside !mb-4 !space-y-1.5 !pl-6;
   }
+
   .prose ol {
-    @apply list-decimal list-inside mb-4 space-y-1;
+    @apply !list-decimal !list-outside !mb-4 !space-y-1.5 !pl-6;
   }
+
   .prose li {
-    @apply text-sm leading-relaxed;
+    @apply !text-sm !leading-relaxed !mb-1;
   }
+
+  .prose li p {
+    display: inline !important;
+    margin: 0 !important;
+  }
+
+  .prose li>ul,
+  .prose li>ol {
+    @apply !mt-1.5 !ml-0;
+  }
+
   .prose table {
     @apply w-full text-left border-collapse my-4;
   }
+
   .prose th {
     @apply bg-[#28292a] p-2 font-semibold text-xs border border-[#3c4043];
   }
+
   .prose td {
     @apply p-2 text-xs border border-[#3c4043];
   }
-
-  .custom-scrollbar::-webkit-scrollbar {
-    width: 6px;
+  .prose .katex-display {
+    @apply my-4 overflow-x-auto overflow-y-hidden py-2 custom-scrollbar;
   }
-  .custom-scrollbar::-webkit-scrollbar-track {
+
+}
+
+@utility custom-scrollbar {
+  &::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  &::-webkit-scrollbar-track {
     background: transparent;
   }
-  .custom-scrollbar::-webkit-scrollbar-thumb {
+  &::-webkit-scrollbar-thumb {
     background: #3c4043;
     border-radius: 10px;
   }
-  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  &::-webkit-scrollbar-thumb:hover {
     background: #484c50;
   }
 }

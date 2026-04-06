@@ -17,6 +17,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
+import rehypeHighlight from 'rehype-highlight';
 import 'katex/dist/katex.min.css';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { LLMService } from '@/lib/llm';
@@ -210,6 +211,34 @@ export default function Home() {
     setIsDeleteModalOpen(false);
   };
 
+  const autoCloseMarkdown = (content: string) => {
+    if (!content) return '';
+    
+    let processed = content;
+    
+    // Auto-close block math $$
+    const blockMathCount = (processed.match(/\$\$/g) || []).length;
+    if (blockMathCount % 2 !== 0) {
+      processed += '\n$$';
+    }
+    
+    // Auto-close inline math $
+    // We only close if it looks like a math start ($ followed by non-space)
+    const inlineMathMatches = processed.match(/\$([^\s$])/g);
+    const inlineMathCloseMatches = processed.match(/([^\s$])\$/g);
+    if (inlineMathMatches && (!inlineMathCloseMatches || inlineMathMatches.length > inlineMathCloseMatches.length)) {
+      processed += '$';
+    }
+    
+    // Auto-close code blocks ```
+    const codeBlockCount = (processed.match(/```/g) || []).length;
+    if (codeBlockCount % 2 !== 0) {
+      processed += '\n```';
+    }
+    
+    return processed;
+  };
+
   const handleSendMessage = async () => {
     if (!input.trim() || isLoading || isInitializing) return;
 
@@ -290,8 +319,8 @@ export default function Home() {
       const contextMessages = previousMessages.slice(-14);
       const allMessages = [...contextMessages, userMessage];
 
-      // System instructions for Gemma
-      const systemInstruction = "You are Gemma 4 E4B, a high-performance model created by Google DeepMind and featured in this text-only chat demo by Ege Kaan Işık. Your goal is to be a brilliant, supportive, and witty collaborator providing accurate text responses in the same language as the user's input. Avoid filler phrases, generic AI introductions, or unnecessary prose, and use standard Markdown for all formatting to ensure your answers are optimized for efficiency and clarity. Your guiding principle is that intelligence-per-parameter is the ultimate metric for exploring the capabilities of this model. Your messages should not contain any 'Self-Correction/Analysis' or internal reasoning blocks. IMPORTANT: Generate ONLY the Assistant's response. Do NOT generate any 'User:' turns or additional dialogue. Stop immediately after finishing your answer.";
+      // System instructions for Gemma with per-chat entropy injection
+      const systemInstruction = `You are Gemma 4 E4B, a high-performance model created by Google DeepMind and featured in this text-only chat demo by Ege Kaan Işık. Your goal is to be a brilliant, supportive, and witty collaborator providing accurate text responses in the same language as the user's input. Avoid filler phrases, generic AI introductions, or unnecessary prose, and use standard Markdown for all formatting. Specifically: always specify the programming language for code blocks (e.g., \` \` \`python) and use standard LaTeX delimiters for all mathematical equations ($ for inline and $$ for block math) to ensure proper rendering. Your guiding principle is that intelligence-per-parameter is the ultimate metric for exploring the capabilities of this model. Your messages should not contain any 'Self-Correction/Analysis' or internal reasoning blocks. IMPORTANT: Generate ONLY the Assistant's response. Do NOT generate any 'User:' turns or additional dialogue. Stop immediately after finishing your answer. (Conversation Fingerprint: ${activeChatId || Date.now()})`;
 
       // Construct prompt with context
       const context = allMessages.map(m =>
@@ -627,21 +656,24 @@ export default function Home() {
                     {msg.role === 'user' ? <User size={20} /> : <GemmaIcon size={24} className="text-blue-400" />}
                   </div>
                   <div className={cn(
-                    "flex-1 space-y-2 max-w-[85%]",
-                    msg.role === 'user' ? "text-right" : "text-left"
+                    "flex-1 min-w-0 space-y-2",
+                    msg.role === 'user' ? "flex flex-col items-end" : "flex flex-col items-start"
                   )}>
                     <div className={cn(
-                      "inline-block p-4 rounded-2xl text-sm leading-relaxed",
+                      "block max-w-full p-4 rounded-2xl text-sm leading-relaxed min-w-0 shadow-sm",
                       msg.role === 'user'
-                        ? "bg-[#28292a] text-white rounded-tr-none"
-                        : "bg-[#1e1f20] text-[#e3e3e3] border border-[#28292a] rounded-tl-none"
+                        ? "bg-[#28292a] text-white rounded-tr-none ml-4"
+                        : "bg-[#1e1f20] text-[#e3e3e3] border border-[#28292a] rounded-tl-none mr-4"
                     )}>
-                      <div className="prose prose-invert max-w-none prose-p:leading-relaxed prose-pre:bg-[#0d0d0d] prose-pre:p-4 prose-code:text-blue-300">
+                      <div className="prose prose-invert max-w-full prose-p:leading-relaxed min-w-0">
                         <ReactMarkdown 
                           remarkPlugins={[remarkGfm, remarkMath]}
-                          rehypePlugins={[rehypeKatex]}
+                          rehypePlugins={[
+                            [rehypeKatex, { strict: false, output: 'html' }],
+                            rehypeHighlight
+                          ]}
                         >
-                          {msg.content || (isLoading && msg.role === 'assistant' ? "..." : "")}
+                          {autoCloseMarkdown(msg.content) || (isLoading && msg.role === 'assistant' ? "..." : "")}
                         </ReactMarkdown>
                       </div>
                     </div>

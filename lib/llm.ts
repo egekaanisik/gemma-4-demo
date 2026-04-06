@@ -184,6 +184,9 @@ export class LLMService {
           modelAssetPath: localModelUrl,
         },
         maxTokens: 8192,
+        temperature: 0.8,
+        topK: 40,
+        randomSeed: Math.floor(Math.random() * 2147483647),
       });
 
       return this.instance;

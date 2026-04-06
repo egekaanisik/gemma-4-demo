@@ -72,9 +72,10 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const [isInitializing, setIsInitializing] = useState(false);
   const [initProgress, setInitProgress] = useState(0);
+  const [generatingChatId, setGeneratingChatId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [deleteModalTarget, setDeleteModalTarget] = useState<'all' | string | null>(null);
   const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 0);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -151,6 +152,18 @@ export default function Home() {
     initModel();
   }, [mounted]);
 
+  // Prevent tab closing during generation
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isLoading) {
+        e.preventDefault();
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isLoading]);
+
   const activeChat = useMemo(() =>
     chats.find(c => c.id === activeChatId) || null,
     [chats, activeChatId]);
@@ -196,47 +209,25 @@ export default function Home() {
   };
 
   const deleteChat = (id: string, e: React.MouseEvent) => {
+    if (id === generatingChatId) return;
     e.stopPropagation();
-    setChats(chats.filter(c => c.id !== id));
-    if (activeChatId === id) setActiveChatId(null);
+    setDeleteModalTarget(id);
   };
 
   const deleteAllChats = () => {
-    setIsDeleteModalOpen(true);
+    if (isLoading) return;
+    setDeleteModalTarget('all');
   };
 
-  const confirmDeleteAll = () => {
-    setChats([]);
-    setActiveChatId(null);
-    setIsDeleteModalOpen(false);
-  };
-
-  const autoCloseMarkdown = (content: string) => {
-    if (!content) return '';
-    
-    let processed = content;
-    
-    // Auto-close block math $$
-    const blockMathCount = (processed.match(/\$\$/g) || []).length;
-    if (blockMathCount % 2 !== 0) {
-      processed += '\n$$';
+  const confirmDelete = () => {
+    if (deleteModalTarget === 'all') {
+      setChats([]);
+      setActiveChatId(null);
+    } else if (deleteModalTarget) {
+      setChats(chats.filter(c => c.id !== deleteModalTarget));
+      if (activeChatId === deleteModalTarget) setActiveChatId(null);
     }
-    
-    // Auto-close inline math $
-    // We only close if it looks like a math start ($ followed by non-space)
-    const inlineMathMatches = processed.match(/\$([^\s$])/g);
-    const inlineMathCloseMatches = processed.match(/([^\s$])\$/g);
-    if (inlineMathMatches && (!inlineMathCloseMatches || inlineMathMatches.length > inlineMathCloseMatches.length)) {
-      processed += '$';
-    }
-    
-    // Auto-close code blocks ```
-    const codeBlockCount = (processed.match(/```/g) || []).length;
-    if (codeBlockCount % 2 !== 0) {
-      processed += '\n```';
-    }
-    
-    return processed;
+    setDeleteModalTarget(null);
   };
 
   const handleSendMessage = async () => {
@@ -307,6 +298,7 @@ export default function Home() {
 
     setInput('');
     setIsLoading(true);
+    setGeneratingChatId(currentChatId);
     setError(null);
 
     try {
@@ -320,7 +312,7 @@ export default function Home() {
       const allMessages = [...contextMessages, userMessage];
 
       // System instructions for Gemma with per-chat entropy injection
-      const systemInstruction = `You are Gemma 4 E4B, a high-performance model created by Google DeepMind and featured in this text-only chat demo by Ege Kaan Işık. Your goal is to be a brilliant, supportive, and witty collaborator providing accurate text responses in the same language as the user's input. Avoid filler phrases, generic AI introductions, or unnecessary prose, and use standard Markdown for all formatting. Specifically: always specify the programming language for code blocks (e.g., \` \` \`python) and use standard LaTeX delimiters for all mathematical equations ($ for inline and $$ for block math) to ensure proper rendering. Your guiding principle is that intelligence-per-parameter is the ultimate metric for exploring the capabilities of this model. Your messages should not contain any 'Self-Correction/Analysis' or internal reasoning blocks. IMPORTANT: Generate ONLY the Assistant's response. Do NOT generate any 'User:' turns or additional dialogue. Stop immediately after finishing your answer. (Conversation Fingerprint: ${activeChatId || Date.now()})`;
+      const systemInstruction = `You are Gemma 4 E4B, a high-performance model created by Google DeepMind and featured in this text-only chat demo by Ege Kaan Işık. Your goal is to be a brilliant, supportive, and witty collaborator providing accurate text responses in the same language as the user's input. Avoid filler phrases, generic AI introductions, or unnecessary prose, and use standard Markdown for all formatting. Your guiding principle is that intelligence-per-parameter is the ultimate metric for exploring the capabilities of this model. Your messages should not contain any 'Self-Correction/Analysis' or internal reasoning blocks. IMPORTANT: Generate ONLY the Assistant's response. Do NOT generate any 'User:' turns or additional dialogue. Stop immediately after finishing your answer. (Conversation Fingerprint: ${activeChatId || Date.now()})`;
 
       // Construct prompt with context
       const context = allMessages.map(m =>
@@ -385,6 +377,7 @@ export default function Home() {
       setError(err.message || "Failed to generate response. Make sure your browser supports WebGPU.");
     } finally {
       setIsLoading(false);
+      setGeneratingChatId(null);
     }
   };
 
@@ -392,13 +385,13 @@ export default function Home() {
     <div className="flex h-screen bg-[#131314] text-[#e3e3e3] font-sans overflow-hidden">
       {/* Delete Confirmation Modal */}
       <AnimatePresence>
-        {isDeleteModalOpen && (
+        {deleteModalTarget && (
           <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setIsDeleteModalOpen(false)}
+              onClick={() => setDeleteModalTarget(null)}
               className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             />
             <motion.div
@@ -408,23 +401,27 @@ export default function Home() {
               className="relative w-full max-w-sm bg-[#1e1f20] border border-[#28292a] rounded-2xl p-6 shadow-2xl space-y-6"
             >
               <div className="space-y-2">
-                <h3 className="text-xl font-semibold text-white">Clear all chats?</h3>
+                <h3 className="text-xl font-semibold text-white">
+                  {deleteModalTarget === 'all' ? 'Clear all chats?' : 'Delete chat?'}
+                </h3>
                 <p className="text-[#9aa0a6] text-sm">
-                  This will permanently delete all your chat history. This action cannot be undone.
+                  {deleteModalTarget === 'all' 
+                    ? 'This will permanently delete your entire chat history. This action cannot be undone.'
+                    : 'This will permanently delete this conversation from your history. This action cannot be undone.'}
                 </p>
               </div>
               <div className="flex gap-3">
                 <button
-                  onClick={() => setIsDeleteModalOpen(false)}
+                  onClick={() => setDeleteModalTarget(null)}
                   className="flex-1 px-4 py-2.5 rounded-xl bg-[#28292a] hover:bg-[#333537] text-white text-sm font-medium transition-colors"
                 >
                   Cancel
                 </button>
                 <button
-                  onClick={confirmDeleteAll}
+                  onClick={confirmDelete}
                   className="flex-1 px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white text-sm font-medium transition-colors"
                 >
-                  Clear All
+                  {deleteModalTarget === 'all' ? 'Clear All' : 'Delete'}
                 </button>
               </div>
             </motion.div>
@@ -547,7 +544,11 @@ export default function Home() {
                 </div>
                 <button
                   onClick={(e) => deleteChat(chat.id, e)}
-                  className="opacity-100 md:opacity-0 md:group-hover:opacity-100 p-1 hover:text-red-400 transition-all"
+                  disabled={chat.id === generatingChatId}
+                  className={cn(
+                    "opacity-100 md:opacity-0 md:group-hover:opacity-100 p-1 transition-all",
+                    chat.id === generatingChatId ? "cursor-not-allowed text-[#3c4043]" : "hover:text-red-400"
+                  )}
                 >
                   <Trash2 size={14} />
                 </button>
@@ -558,7 +559,13 @@ export default function Home() {
           <div className="p-4 border-t border-[#28292a] space-y-2">
             <button
               onClick={deleteAllChats}
-              className="flex items-center gap-3 px-4 py-2 hover:bg-red-400/10 text-[#9aa0a6] hover:text-red-400 rounded-xl transition-colors w-full text-sm"
+              disabled={isLoading}
+              className={cn(
+                "flex items-center gap-3 px-4 py-2 rounded-xl transition-colors w-full text-sm",
+                isLoading 
+                  ? "cursor-not-allowed text-[#3c4043] bg-transparent" 
+                  : "hover:bg-red-400/10 text-[#9aa0a6] hover:text-red-400"
+              )}
             >
               <Trash size={18} />
               <span>Clear all chats</span>
@@ -596,16 +603,7 @@ export default function Home() {
             <h1 className="text-lg md:text-xl font-medium text-[#e3e3e3] truncate px-12">Gemma 4 Demo</h1>
           </div>
 
-          <div className="ml-auto z-10 flex items-center gap-2">
-            <div className={cn(
-              "px-3 py-1 rounded-full text-[10px] md:text-xs font-medium flex items-center gap-2 hidden md:flex",
-              isLoading ? "bg-blue-900/30 text-blue-400" : "bg-green-900/30 text-green-400"
-            )}>
-              <div className={cn("w-1.5 h-1.5 md:w-2 md:h-2 rounded-full", isLoading ? "bg-blue-400 animate-pulse" : "bg-green-400")} />
-              <span className="hidden sm:inline">{isLoading ? "Thinking..." : "Ready"}</span>
-              <span className="sm:hidden">{isLoading ? "..." : "●"}</span>
-            </div>
-          </div>
+          <div className="ml-auto z-10 flex items-center gap-2" />
         </header>
 
         {/* Chat Area */}
@@ -669,11 +667,11 @@ export default function Home() {
                         <ReactMarkdown 
                           remarkPlugins={[remarkGfm, remarkMath]}
                           rehypePlugins={[
-                            [rehypeKatex, { strict: false, output: 'html' }],
+                            [rehypeKatex, { strict: false, output: 'html', throwOnError: false }],
                             rehypeHighlight
                           ]}
                         >
-                          {autoCloseMarkdown(msg.content) || (isLoading && msg.role === 'assistant' ? "..." : "")}
+                          {msg.content || (isLoading && msg.role === 'assistant' ? "..." : "")}
                         </ReactMarkdown>
                       </div>
                     </div>
@@ -691,8 +689,41 @@ export default function Home() {
         {/* Input Area */}
         <div className="p-4 md:p-6 bg-gradient-to-t from-[#131314] via-[#131314] to-transparent">
           <div className="max-w-3xl mx-auto relative">
+            <AnimatePresence>
+              {isLoading && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 5, scale: 0.95 }}
+                  transition={{ duration: 0.2 }}
+                  className="absolute bottom-full left-0 mb-4 z-10"
+                >
+                  <div className="flex items-center gap-3 px-4 py-2 bg-[#1e1f20]/80 backdrop-blur-md border border-[#28292a] rounded-2xl shadow-xl">
+                    <div className="flex gap-1.5">
+                      <motion.div
+                        animate={{ opacity: [0.4, 1, 0.4] }}
+                        transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                        className="w-1.5 h-1.5 bg-blue-500 rounded-full"
+                      />
+                      <motion.div
+                        animate={{ opacity: [0.4, 1, 0.4] }}
+                        transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut", delay: 0.2 }}
+                        className="w-1.5 h-1.5 bg-blue-500 rounded-full"
+                      />
+                      <motion.div
+                        animate={{ opacity: [0.4, 1, 0.4] }}
+                        transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut", delay: 0.4 }}
+                        className="w-1.5 h-1.5 bg-blue-500 rounded-full"
+                      />
+                    </div>
+                    <span className="text-[11px] font-medium text-[#9aa0a6]">Gemma is thinking...</span>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
             {error && (
-              <div className="absolute bottom-full left-0 right-0 mb-4 p-3 bg-red-900/20 border border-red-900/50 text-red-400 text-xs rounded-lg flex items-center gap-2">
+              <div className="absolute bottom-full left-0 right-0 mb-4 p-3 bg-red-900/20 border border-red-900/50 text-red-400 text-xs rounded-lg flex items-center gap-2 z-20">
                 <X size={14} className="shrink-0" />
                 <span>{error}</span>
               </div>

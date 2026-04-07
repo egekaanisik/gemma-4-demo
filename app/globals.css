@@ -30,7 +30,7 @@
 }
 
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-google-sans), "Inter", ui-sans-serif, system-ui, sans-serif;
 }
 
 @layer base {

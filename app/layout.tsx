@@ -1,5 +1,12 @@
 import type { Metadata } from 'next';
-import './globals.css'; // Global styles
+import { Google_Sans } from 'next/font/google';
+import './globals.css';
+
+const googleSans = Google_Sans({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-google-sans',
+});
 
 export const metadata: Metadata = {
   title: 'Gemma 4 Demo',
@@ -25,8 +32,8 @@ export const viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <body suppressHydrationWarning>{children}</body>
+    <html lang="en" className={googleSans.variable}>
+      <body suppressHydrationWarning className="font-sans">{children}</body>
     </html>
   );
 }

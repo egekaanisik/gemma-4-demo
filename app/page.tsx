@@ -230,6 +230,29 @@ export default function Home() {
     setDeleteModalTarget(null);
   };
 
+  const generateChatTitle = async (chatId: string, firstMessage: string) => {
+    try {
+      // Prompting for a descriptive noun phrase summarizing the intent
+      const titlePrompt = `User: ${firstMessage}\n\nTask: Summarize the user's intent into a concise 3-5 word title (e.g., "Cake Recipe Request" or "Next.js Project Setup"). Respond ONLY with the title text. IMPORTANT: The title should not be long. (No quotes, no period)\n\nAssistant: `;
+      
+      const generatedTitle = await LLMService.generateResponse(MODEL_URL, titlePrompt);
+      
+      // Clean up the title (sometimes models add quotes, prefixes like "Title:", or extra text)
+      let cleanTitle = generatedTitle.trim()
+        .replace(/^Title:\s*/i, '')
+        .replace(/^["']|["']$/g, '')
+        .split('\n')[0];
+        
+      if (cleanTitle) {
+        setChats(prev => prev.map(c => 
+          c.id === chatId ? { ...c, title: cleanTitle } : c
+        ));
+      }
+    } catch (err) {
+      console.error("Failed to generate title:", err);
+    }
+  };
+
   const handleSendMessage = async () => {
     if (!input.trim() || isLoading || isInitializing) return;
 
@@ -240,7 +263,7 @@ export default function Home() {
     if (!currentChatId) {
       const newChat: Chat = {
         id: Date.now().toString(),
-        title: input.slice(0, 30) + (input.length > 30 ? '...' : ''),
+        title: '...',
         messages: [],
         updatedAt: Date.now(),
       };
@@ -265,7 +288,7 @@ export default function Home() {
       if (!currentChatId) {
         const newChat: Chat = {
           id: Date.now().toString(),
-          title: input.slice(0, 30) + (input.length > 30 ? '...' : ''),
+          title: '...',
           messages: [],
           updatedAt: Date.now(),
         };
@@ -282,7 +305,7 @@ export default function Home() {
             ...c,
             messages: [...currentMessages, userMessage],
             updatedAt: Date.now(),
-            title: currentMessages.length === 0 ? input.slice(0, 30) : c.title
+            title: currentMessages.length === 0 ? '...' : c.title
           };
         }
         return c;
@@ -320,6 +343,11 @@ export default function Home() {
       ).join('\n');
 
       const fullPrompt = `${systemInstruction}\n\n${context}Assistant: `;
+
+      // If this was the first exchange (only 1 user message in history), generate a creative title BEFORE the main response
+      if (allMessages.length === 1) {
+        await generateChatTitle(currentChatId!, userMessage.content);
+      }
 
       const assistantMessageId = (Date.now() + 1).toString();
 

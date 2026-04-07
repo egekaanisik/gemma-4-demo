@@ -68,6 +68,7 @@ export default function Home() {
   const [chats, setChats] = useLocalStorage<Chat[]>('gemma-chats', []);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [input, setInput] = useState('');
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isInitializing, setIsInitializing] = useState(false);
@@ -103,9 +104,25 @@ export default function Home() {
     return new Date(timestamp).toLocaleDateString();
   };
 
+  const updateInput = (value: string) => {
+    setInput(value);
+    setDrafts(prev => ({ ...prev, [activeChatId || 'default']: value }));
+  };
+
+  // Sync input with drafts when switching chats
+  useEffect(() => {
+    if (mounted) {
+      setInput(drafts[activeChatId || 'default'] || '');
+    }
+  }, [activeChatId, mounted, drafts]);
+
   // Handle hydration and initial sidebar state
   useEffect(() => {
     setMounted(true);
+    
+    // Clean up empty chats on load
+    setChats(prev => prev.filter(c => c.messages && c.messages.length > 0));
+
     const handleResize = () => setWindowWidth(window.innerWidth);
     window.addEventListener('resize', handleResize);
 
@@ -197,6 +214,13 @@ export default function Home() {
   }
 
   const createNewChat = () => {
+    const emptyChat = chats.find(c => !c.messages || c.messages.length === 0);
+    if (emptyChat) {
+      setActiveChatId(emptyChat.id);
+      if (window.innerWidth < 768) setIsSidebarOpen(false);
+      return;
+    }
+
     const newChat: Chat = {
       id: Date.now().toString(),
       title: 'New Chat',
@@ -233,7 +257,7 @@ export default function Home() {
   const generateChatTitle = async (chatId: string, firstMessage: string) => {
     try {
       // Prompting for a descriptive noun phrase summarizing the intent
-      const titlePrompt = `User: ${firstMessage}\n\nTask: Summarize the user's intent into a concise 3-5 word title (e.g., "Cake Recipe Request" or "Next.js Project Setup"). Respond ONLY with the title text. IMPORTANT: The title should not be long. (No quotes, no period)\n\nAssistant: `;
+      const titlePrompt = `User: ${firstMessage}\n\nTask: Summarize the user's message into a very brief and professional title (max 5 words). If the message is a greeting or very short, use a simple representative keyword. Respond ONLY with the title text itself in Title Case (e.g., "Project Setup Guide"). Do not mention "max 5 words" or any word counts in the output. (No quotes, no period) (Title Fingerprint: ${chatId || Date.now()})\n\nAssistant: `;
       
       const generatedTitle = await LLMService.generateResponse(MODEL_URL, titlePrompt);
       
@@ -319,7 +343,7 @@ export default function Home() {
       return updated;
     });
 
-    setInput('');
+    updateInput('');
     setIsLoading(true);
     setGeneratingChatId(currentChatId);
     setError(null);
@@ -690,7 +714,7 @@ export default function Home() {
                   ].map(suggestion => (
                     <button
                       key={suggestion}
-                      onClick={() => setInput(suggestion)}
+                      onClick={() => updateInput(suggestion)}
                       className="p-4 bg-[#1e1f20] hover:bg-[#28292a] rounded-xl text-sm text-left transition-colors border border-[#28292a]"
                     >
                       {suggestion}
@@ -792,7 +816,7 @@ export default function Home() {
               <textarea
                 ref={textareaRef}
                 value={input}
-                onChange={(e) => setInput(e.target.value)}
+                onChange={(e) => updateInput(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();

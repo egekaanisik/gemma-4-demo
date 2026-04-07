@@ -516,15 +516,15 @@ export default function Home() {
             className="fixed inset-0 z-[200] bg-[#131314] flex flex-col items-center justify-center space-y-6"
           >
             <div className="relative mb-12">
-              <motion.div 
-                animate={{ 
+              <motion.div
+                animate={{
                   scale: [1, 1.25, 1],
                   opacity: [0.3, 0.6, 0.3],
                 }}
-                transition={{ 
-                  duration: 5, 
-                  repeat: Infinity, 
-                  ease: "easeInOut" 
+                transition={{
+                  duration: 5,
+                  repeat: Infinity,
+                  ease: "easeInOut"
                 }}
                 className="absolute -inset-16 bg-primary/20 blur-3xl rounded-full"
               />
@@ -543,20 +543,20 @@ export default function Home() {
 
             <div className="w-full max-w-lg flex flex-col items-center space-y-12 z-10">
               <div className="text-center space-y-4">
-                <motion.h2 
+                <motion.h2
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   className="text-4xl md:text-5xl font-medium text-white tracking-tight"
                 >
                   Gemma 4
                 </motion.h2>
-                <motion.p 
+                <motion.p
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ delay: 0.2 }}
                   className="text-[#9aa0a6] text-sm md:text-base font-medium tracking-wide"
                 >
-                  Downloading and initializing Gemma 4 E4B
+                  Downloading and initializing Gemma 4 E4B...
                 </motion.p>
               </div>
 
@@ -767,35 +767,35 @@ export default function Home() {
         )}>
           <div className={cn(
             "max-w-3xl mx-auto space-y-8 w-full",
-            (!activeChat || !activeChat.messages || activeChat.messages.length === 0) && "my-auto py-8"
+            (!activeChat || !activeChat.messages || activeChat.messages.length === 0) && "my-auto py-6"
           )}>
             {!isInitializing && (!activeChat || !activeChat.messages || activeChat.messages.length === 0) ? (
-              <motion.div 
+              <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.8, ease: "easeOut" }}
-                className="flex flex-col items-center justify-center text-center space-y-10"
+                className="flex flex-col items-center justify-center text-center space-y-9"
               >
                 <div className="relative group">
-                  <motion.div 
-                    animate={{ 
+                  <motion.div
+                    animate={{
                       scale: [1, 1.15, 1],
                       opacity: [0.3, 0.6, 0.3],
                     }}
-                    transition={{ 
-                      duration: 4, 
-                      repeat: Infinity, 
-                      ease: "easeInOut" 
+                    transition={{
+                      duration: 4,
+                      repeat: Infinity,
+                      ease: "easeInOut"
                     }}
                     className="absolute -inset-4 bg-primary/20 blur-2xl rounded-full"
                   />
-                  <div className="relative w-32 h-32 bg-[#1e1f20]/80 backdrop-blur-xl rounded-full flex items-center justify-center text-primary shadow-2xl border border-[#28292a] group-hover:border-primary/50 transition-colors duration-500">
-                    <GemmaIcon size={96} />
+                  <div className="relative w-28 h-28 bg-[#1e1f20]/80 backdrop-blur-xl rounded-full flex items-center justify-center text-primary shadow-2xl border border-[#28292a] group-hover:border-primary/50 transition-colors duration-500">
+                    <GemmaIcon size={84} />
                   </div>
                 </div>
 
-                <div className="space-y-4 max-w-2xl px-4">
-                  <motion.h2 
+                <div className="space-y-3 max-w-2xl px-4">
+                  <motion.h2
                     initial={{ opacity: 0, filter: "blur(10px)" }}
                     animate={{ opacity: 1, filter: "blur(0px)" }}
                     transition={{ delay: 0.2, duration: 0.8 }}
@@ -803,7 +803,7 @@ export default function Home() {
                   >
                     Hello! I&apos;m <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-[#B1C5FF]">Gemma 4</span>.
                   </motion.h2>
-                  <motion.p 
+                  <motion.p
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.4, duration: 0.8 }}
@@ -815,31 +815,31 @@ export default function Home() {
                   </motion.p>
                 </div>
 
-                <motion.div 
+                <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.6, duration: 0.8 }}
-                  className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-2xl pt-4"
+                  className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full max-w-2xl pt-2"
                 >
                   {[
-                    { 
-                      text: "Explain quantum computing", 
-                      icon: <MdOutlineScience size={20} className="text-orange-400" />,
+                    {
+                      text: "Explain quantum computing",
+                      icon: <MdOutlineScience size={18} className="text-orange-400" />,
                       label: "Knowledge"
                     },
-                    { 
-                      text: "Write a poem about space", 
-                      icon: <MdOutlineHistoryEdu size={20} className="text-purple-400" />,
-                      label: "Creative" 
+                    {
+                      text: "Write a poem about space",
+                      icon: <MdOutlineHistoryEdu size={18} className="text-purple-400" />,
+                      label: "Creative"
                     },
-                    { 
-                      text: "Write a React hook for fetch", 
-                      icon: <MdOutlineCode size={20} className="text-blue-400" />,
+                    {
+                      text: "Write a React hook for fetch",
+                      icon: <MdOutlineCode size={18} className="text-blue-400" />,
                       label: "Code"
                     },
-                    { 
-                      text: "Analyze this idea: Local-first AI", 
-                      icon: <MdOutlineLightbulb size={20} className="text-yellow-400" />,
+                    {
+                      text: "Analyze this idea: Local-first AI",
+                      icon: <MdOutlineLightbulb size={18} className="text-yellow-400" />,
                       label: "Strategy"
                     }
                   ].map((suggestion, index) => (
@@ -848,21 +848,21 @@ export default function Home() {
                       whileHover={{ scale: 1.02, backgroundColor: "rgba(40, 41, 42, 0.8)" }}
                       whileTap={{ scale: 0.98 }}
                       onClick={() => updateInput(suggestion.text)}
-                      className="group p-5 bg-[#1e1f20]/50 backdrop-blur-md rounded-2xl text-left transition-all border border-[#28292a] hover:border-[#3c4043] flex flex-col gap-3 relative overflow-hidden"
+                      className="group p-3.5 bg-[#1e1f20]/50 backdrop-blur-md rounded-2xl text-left transition-all border border-[#28292a] hover:border-[#3c4043] flex flex-col gap-2 relative overflow-hidden"
                     >
                       <div className="flex items-center justify-between">
-                        <div className="p-2 bg-[#131314] rounded-lg border border-[#28292a] group-hover:border-primary/30 transition-colors">
+                        <div className="p-1.5 bg-[#131314] rounded-lg border border-[#28292a] group-hover:border-primary/30 transition-colors">
                           {suggestion.icon}
                         </div>
-                        <span className="text-[10px] uppercase tracking-widest text-[#5f6368] font-bold group-hover:text-primary transition-colors">
+                        <span className="text-[9px] uppercase tracking-widest text-[#5f6368] font-bold group-hover:text-primary transition-colors">
                           {suggestion.label}
                         </span>
                       </div>
-                      <span className="text-sm font-medium text-[#e3e3e3] group-hover:text-white transition-colors">
+                      <span className="text-[13px] font-medium text-[#e3e3e3] group-hover:text-white transition-colors">
                         {suggestion.text}
                       </span>
                       <div className="absolute top-0 right-0 p-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                         <MdOutlineAutoAwesome size={12} className="text-primary/50" />
+                        <MdOutlineAutoAwesome size={12} className="text-primary/50" />
                       </div>
                     </motion.button>
                   ))}
@@ -917,7 +917,7 @@ export default function Home() {
         </div>
 
         {/* Input Area */}
-        <div className="p-4 md:p-6 bg-gradient-to-t from-[#131314] via-[#131314] to-transparent">
+        <div className="p-4 md:p-5 bg-gradient-to-t from-[#131314] via-[#131314] to-transparent">
           <div className="max-w-3xl mx-auto relative">
             <AnimatePresence>
               {isLoading && (

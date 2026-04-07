@@ -84,6 +84,7 @@ export class LLMService {
                 'Content-Length': blob.size.toString()
               }
             });
+            if (onProgress) onProgress(99, 'Caching model');
             await cache.put(modelUrl, responseToCache);
           } catch (e) {
             console.warn('Caching failed, skipping cache');

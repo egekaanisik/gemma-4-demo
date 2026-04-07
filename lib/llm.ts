@@ -5,7 +5,7 @@ export class LLMService {
   private static isInitializing = false;
   private static CACHE_NAME = 'gemma-model-cache';
 
-  static async getCachedModel(modelUrl: string, onProgress?: (progress: number) => void): Promise<string> {
+  static async getCachedModel(modelUrl: string, onProgress?: (progress: number, status: string) => void): Promise<string> {
     const isCacheSupported = typeof window !== 'undefined' && 'caches' in window;
 
     // Helper to verify a blob URL is actually readable (catches ERR_BLOB_OUT_OF_MEMORY Early)
@@ -27,6 +27,7 @@ export class LLMService {
 
     if (isCacheSupported) {
       try {
+        if (onProgress) onProgress(0, 'Checking cache');
         const cache = await caches.open(this.CACHE_NAME);
         const cachedResponse = await cache.match(modelUrl);
 
@@ -37,7 +38,7 @@ export class LLMService {
             if (blob.size > 0) {
               const url = URL.createObjectURL(blob);
               if (await verifyBlobUrl(url)) {
-                if (onProgress) onProgress(100);
+                if (onProgress) onProgress(100, 'Model ready');
                 return url;
               } else {
                 console.warn('Cached blob is not readable (likely OOM). Falling back to direct URL.');
@@ -58,6 +59,7 @@ export class LLMService {
     }
 
     console.log('Downloading model...');
+    if (onProgress) onProgress(1, 'Downloading');
     try {
       const response = await fetch(modelUrl, {
         mode: 'cors',
@@ -87,7 +89,7 @@ export class LLMService {
             console.warn('Caching failed, skipping cache');
           }
         }
-        if (onProgress) onProgress(100);
+        if (onProgress) onProgress(100, 'Model ready');
         try {
           const url = URL.createObjectURL(blob);
           if (await verifyBlobUrl(url)) return url;
@@ -105,7 +107,7 @@ export class LLMService {
           chunks.push(value);
           loaded += value.length;
           if (onProgress && total) {
-            onProgress(Math.min(99, Math.round((loaded / total) * 100)));
+            onProgress(Math.min(99, Math.round((loaded / total) * 100)), 'Downloading');
           }
         }
       }
@@ -128,6 +130,7 @@ export class LLMService {
               'Content-Length': blob.size.toString()
             }
           });
+          if (onProgress) onProgress(99, 'Caching model');
           await cache.put(modelUrl, responseToCache);
           console.log('Model cached successfully with Content-Length:', blob.size);
         } catch (e) {
@@ -136,7 +139,7 @@ export class LLMService {
         }
       }
 
-      if (onProgress) onProgress(100);
+      if (onProgress) onProgress(100, 'Model ready');
       try {
         const url = URL.createObjectURL(blob);
         if (await verifyBlobUrl(url)) {
@@ -155,9 +158,9 @@ export class LLMService {
     }
   }
 
-  static async getInstance(modelUrl: string, onProgress?: (progress: number) => void): Promise<LlmInference> {
+  static async getInstance(modelUrl: string, onProgress?: (progress: number, status: string) => void): Promise<LlmInference> {
     if (this.instance) {
-      if (onProgress) onProgress(100);
+      if (onProgress) onProgress(100, 'Model ready');
       return this.instance;
     }
 
@@ -167,7 +170,7 @@ export class LLMService {
         await new Promise(resolve => setTimeout(resolve, 100));
       }
       if (this.instance) {
-        if (onProgress) onProgress(100);
+        if (onProgress) onProgress(100, 'Model ready');
         return this.instance;
       }
     }
@@ -179,6 +182,7 @@ export class LLMService {
       );
 
       const localModelUrl = await this.getCachedModel(modelUrl, onProgress);
+      if (onProgress) onProgress(100, 'Preparing GPU');
       this.instance = await LlmInference.createFromOptions(fileset, {
         baseOptions: {
           modelAssetPath: localModelUrl,
@@ -189,6 +193,7 @@ export class LLMService {
         randomSeed: Math.floor(Math.random() * 2147483647),
       });
 
+      if (onProgress) onProgress(100, 'Model ready');
       return this.instance;
     } finally {
       this.isInitializing = false;

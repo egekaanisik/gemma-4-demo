@@ -12,6 +12,11 @@ import {
   MdOutlineMenu,
   MdOutlineClose,
   MdOutlineRefresh,
+  MdOutlineLightbulb,
+  MdOutlineAutoAwesome,
+  MdOutlineHistoryEdu,
+  MdOutlineScience,
+  MdOutlineCode,
 } from 'react-icons/md';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -73,11 +78,29 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const [isInitializing, setIsInitializing] = useState(false);
   const [initProgress, setInitProgress] = useState(0);
+  const [initStatus, setInitStatus] = useState('Initializing');
   const [generatingChatId, setGeneratingChatId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
   const [deleteModalTarget, setDeleteModalTarget] = useState<'all' | string | null>(null);
   const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 0);
+  const [loadingInfoIndex, setLoadingInfoIndex] = useState(0);
+
+  const loadingInfos = useMemo(() => [
+    { title: "On-Device Processing", desc: "Your data never leaves your machine. Computation happens locally in your GPU." },
+    { title: "Self-Caching", desc: "Once downloaded, the model is stored in your browser's persistent cache." },
+    { title: "High Performance", desc: "Leveraging MediaPipe LLM Inference for low-latency browser AI." },
+    { title: "Total Privacy", desc: "Works even without an internet connection after the initialization phase." }
+  ], []);
+
+  useEffect(() => {
+    if (isInitializing) {
+      const interval = setInterval(() => {
+        setLoadingInfoIndex(prev => (prev + 1) % loadingInfos.length);
+      }, 6000); // Extended for better readability
+      return () => clearInterval(interval);
+    }
+  }, [isInitializing, loadingInfos.length]);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -147,10 +170,12 @@ export default function Home() {
     const initModel = async () => {
       setIsInitializing(true);
       setInitProgress(0);
+      setInitStatus('Initializing');
       setError(null);
       try {
-        await LLMService.getInstance(MODEL_URL, (progress) => {
+        await LLMService.getInstance(MODEL_URL, (progress, status) => {
           setInitProgress(progress);
+          setInitStatus(status);
         });
       } catch (err: any) {
         console.error("Initialization error:", err);
@@ -162,8 +187,8 @@ export default function Home() {
         }
         setError(message);
       } finally {
-        // Add a small delay to ensure the user sees the transition
-        setTimeout(() => setIsInitializing(false), 500);
+        // Add a small delay to ensure the user sees the 'Model ready' status
+        setTimeout(() => setIsInitializing(false), 800);
       }
     };
     initModel();
@@ -490,35 +515,83 @@ export default function Home() {
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-[200] bg-[#131314] flex flex-col items-center justify-center space-y-6"
           >
-            <div className="relative">
-              <div className="w-20 h-20 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
-              <div className="absolute inset-0 flex items-center justify-center">
-                <GemmaIcon size={56} className="text-primary" />
+            <div className="relative mb-12">
+              <motion.div 
+                animate={{ 
+                  scale: [1, 1.25, 1],
+                  opacity: [0.3, 0.6, 0.3],
+                }}
+                transition={{ 
+                  duration: 5, 
+                  repeat: Infinity, 
+                  ease: "easeInOut" 
+                }}
+                className="absolute -inset-16 bg-primary/20 blur-3xl rounded-full"
+              />
+              <div className="relative">
+                <div className="w-28 h-28 border-b-2 border-primary/20 border-t-2 border-primary rounded-full animate-spin duration-[2000ms]" />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <motion.div
+                    animate={{ scale: [0.95, 1.05, 0.95] }}
+                    transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                  >
+                    <GemmaIcon size={64} className="text-primary" />
+                  </motion.div>
+                </div>
               </div>
             </div>
-            <div className="text-center space-y-4">
-              <div className="space-y-1">
-                <h2 className="text-2xl font-semibold text-white">Initializing Gemma 4 E4B</h2>
-                <p className="text-[#9aa0a6] text-xs max-w-xs">
-                  Downloading and preparing the model for on-device inference.
-                </p>
+
+            <div className="w-full max-w-lg flex flex-col items-center space-y-12 z-10">
+              <div className="text-center space-y-4">
+                <motion.h2 
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="text-4xl md:text-5xl font-medium text-white tracking-tight"
+                >
+                  Gemma 4
+                </motion.h2>
+                <motion.p 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.2 }}
+                  className="text-[#9aa0a6] text-sm md:text-base font-medium tracking-wide"
+                >
+                  Downloading and initializing Gemma 4 E4B
+                </motion.p>
               </div>
 
-              <div className="w-64 mx-auto space-y-2">
-                <div className="h-1.5 w-full bg-[#28292a] rounded-full overflow-hidden">
+              <div className="h-20 flex items-center justify-center max-w-sm mx-auto text-center">
+                <AnimatePresence mode="wait">
                   <motion.div
-                    className="h-full bg-primary"
+                    key={loadingInfoIndex}
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -15 }}
+                    transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+                    className="space-y-2 px-6"
+                  >
+                    <p className="text-white text-[10px] font-bold uppercase tracking-[0.3em] opacity-40">{loadingInfos[loadingInfoIndex].title}</p>
+                    <p className="text-[#9aa0a6] text-[13px] leading-relaxed font-medium">{loadingInfos[loadingInfoIndex].desc}</p>
+                  </motion.div>
+                </AnimatePresence>
+              </div>
+
+              <div className="w-full max-w-[280px] space-y-4">
+                <div className="h-[2px] w-full bg-[#1e1f20] rounded-full overflow-hidden">
+                  <motion.div
+                    className="h-full bg-gradient-to-r from-[#446EFF] via-[#2E96FF] to-[#B1C5FF]"
                     initial={{ width: 0 }}
-                    animate={{ width: `${initProgress}%` }}
-                    transition={{ type: 'spring', damping: 20, stiffness: 100 }}
+                    animate={{ width: `${Math.max(2, initProgress)}%` }}
+                    transition={{ type: 'spring', damping: 25, stiffness: 80 }}
                   />
                 </div>
-                <div className="flex justify-between text-[10px] text-[#5f6368] font-medium uppercase tracking-wider">
-                  <span>{initProgress < 100 ? 'Downloading' : 'Ready'}</span>
-                  <span>{initProgress}%</span>
+                <div className="flex justify-between items-center text-[10px] text-[#5f6368] font-bold uppercase tracking-[0.2em]">
+                  <span className="animate-pulse">{initStatus}</span>
+                  <span className="text-primary">{initProgress}%</span>
                 </div>
               </div>
             </div>
+
             <div className="absolute bottom-8 left-0 right-0 text-center flex flex-col gap-1">
               <div className="text-[10px] text-[#5f6368] font-medium">
                 Demo not affiliated with Google.
@@ -689,41 +762,114 @@ export default function Home() {
 
         {/* Chat Area */}
         <div className={cn(
-          "flex-1 overflow-y-auto px-4 py-8 md:px-0",
-          (!activeChat || !activeChat.messages || activeChat.messages.length === 0) && "flex flex-col items-center justify-center"
+          "flex-1 overflow-y-auto px-4 py-8 md:px-0 scroll-smooth",
+          (!activeChat || !activeChat.messages || activeChat.messages.length === 0) && "flex flex-col"
         )}>
-          <div className="max-w-3xl mx-auto space-y-8 w-full">
-            {!activeChat || !activeChat.messages || activeChat.messages.length === 0 ? (
-              <div className="flex flex-col items-center justify-center text-center space-y-6">
-                <div className="w-24 h-24 bg-[#1e1f20] rounded-full flex items-center justify-center text-primary shadow-xl border border-[#28292a]">
-                  <GemmaIcon size={72} />
+          <div className={cn(
+            "max-w-3xl mx-auto space-y-8 w-full",
+            (!activeChat || !activeChat.messages || activeChat.messages.length === 0) && "my-auto py-8"
+          )}>
+            {!isInitializing && (!activeChat || !activeChat.messages || activeChat.messages.length === 0) ? (
+              <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.8, ease: "easeOut" }}
+                className="flex flex-col items-center justify-center text-center space-y-10"
+              >
+                <div className="relative group">
+                  <motion.div 
+                    animate={{ 
+                      scale: [1, 1.15, 1],
+                      opacity: [0.3, 0.6, 0.3],
+                    }}
+                    transition={{ 
+                      duration: 4, 
+                      repeat: Infinity, 
+                      ease: "easeInOut" 
+                    }}
+                    className="absolute -inset-4 bg-primary/20 blur-2xl rounded-full"
+                  />
+                  <div className="relative w-32 h-32 bg-[#1e1f20]/80 backdrop-blur-xl rounded-full flex items-center justify-center text-primary shadow-2xl border border-[#28292a] group-hover:border-primary/50 transition-colors duration-500">
+                    <GemmaIcon size={96} />
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <h2 className="text-3xl font-semibold text-white">Hello! I&apos;m Gemma 4 E4B.</h2>
-                  <p className="text-[#9aa0a6] max-w-md">
+
+                <div className="space-y-4 max-w-2xl px-4">
+                  <motion.h2 
+                    initial={{ opacity: 0, filter: "blur(10px)" }}
+                    animate={{ opacity: 1, filter: "blur(0px)" }}
+                    transition={{ delay: 0.2, duration: 0.8 }}
+                    className="text-4xl md:text-5xl font-medium text-white tracking-tight"
+                  >
+                    Hello! I&apos;m <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-[#B1C5FF]">Gemma 4</span>.
+                  </motion.h2>
+                  <motion.p 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.4, duration: 0.8 }}
+                    className="text-[#9aa0a6] text-lg leading-relaxed"
+                  >
                     I run entirely in your browser. No data ever leaves your device.
-                    How can I help you today?
-                  </p>
+                    <br />
+                    <span className="text-white">How can I help you today?</span>
+                  </motion.p>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full max-w-lg mt-8">
+
+                <motion.div 
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.6, duration: 0.8 }}
+                  className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-2xl pt-4"
+                >
                   {[
-                    "Explain quantum computing",
-                    "Write a poem about space",
-                    "How do I bake a cake?",
-                    "What is React.js?"
-                  ].map(suggestion => (
-                    <button
-                      key={suggestion}
-                      onClick={() => updateInput(suggestion)}
-                      className="p-4 bg-[#1e1f20] hover:bg-[#28292a] rounded-xl text-sm text-left transition-colors border border-[#28292a]"
+                    { 
+                      text: "Explain quantum computing", 
+                      icon: <MdOutlineScience size={20} className="text-orange-400" />,
+                      label: "Knowledge"
+                    },
+                    { 
+                      text: "Write a poem about space", 
+                      icon: <MdOutlineHistoryEdu size={20} className="text-purple-400" />,
+                      label: "Creative" 
+                    },
+                    { 
+                      text: "Write a React hook for fetch", 
+                      icon: <MdOutlineCode size={20} className="text-blue-400" />,
+                      label: "Code"
+                    },
+                    { 
+                      text: "Analyze this idea: Local-first AI", 
+                      icon: <MdOutlineLightbulb size={20} className="text-yellow-400" />,
+                      label: "Strategy"
+                    }
+                  ].map((suggestion, index) => (
+                    <motion.button
+                      key={suggestion.text}
+                      whileHover={{ scale: 1.02, backgroundColor: "rgba(40, 41, 42, 0.8)" }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => updateInput(suggestion.text)}
+                      className="group p-5 bg-[#1e1f20]/50 backdrop-blur-md rounded-2xl text-left transition-all border border-[#28292a] hover:border-[#3c4043] flex flex-col gap-3 relative overflow-hidden"
                     >
-                      {suggestion}
-                    </button>
+                      <div className="flex items-center justify-between">
+                        <div className="p-2 bg-[#131314] rounded-lg border border-[#28292a] group-hover:border-primary/30 transition-colors">
+                          {suggestion.icon}
+                        </div>
+                        <span className="text-[10px] uppercase tracking-widest text-[#5f6368] font-bold group-hover:text-primary transition-colors">
+                          {suggestion.label}
+                        </span>
+                      </div>
+                      <span className="text-sm font-medium text-[#e3e3e3] group-hover:text-white transition-colors">
+                        {suggestion.text}
+                      </span>
+                      <div className="absolute top-0 right-0 p-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                         <MdOutlineAutoAwesome size={12} className="text-primary/50" />
+                      </div>
+                    </motion.button>
                   ))}
-                </div>
-              </div>
+                </motion.div>
+              </motion.div>
             ) : (
-              activeChat.messages.map((msg) => (
+              activeChat?.messages.map((msg) => (
                 <div
                   key={msg.id}
                   className={cn(

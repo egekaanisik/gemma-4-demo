@@ -30,6 +30,7 @@
 }
 
 @theme {
+  --color-primary: #2E96FF;
   --font-sans: var(--font-google-sans), "Inter", ui-sans-serif, system-ui, sans-serif;
 }
 
@@ -47,7 +48,7 @@
   }
 
   .prose code:not(pre code) {
-    @apply !bg-[#000000] !text-blue-300 !px-1.5 !py-0.5 !rounded-md !font-mono !text-[0.8em] !border !border-[#28292a];
+    @apply !bg-[#000000] !text-primary !px-1.5 !py-0.5 !rounded-md !font-mono !text-[0.8em] !border !border-[#28292a];
   }
 
   .prose code.hljs,

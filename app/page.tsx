@@ -3,16 +3,16 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-  Plus,
-  MessageSquare,
-  Trash2,
-  Send,
-  User,
-  Menu,
-  X,
-  Loader2,
-  Trash
-} from 'lucide-react';
+  MdOutlineAdd,
+  MdChatBubbleOutline,
+  MdDeleteOutline,
+  MdOutlineDeleteForever,
+  MdSend,
+  MdOutlineAccountCircle,
+  MdOutlineMenu,
+  MdOutlineClose,
+  MdOutlineRefresh,
+} from 'react-icons/md';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
@@ -119,7 +119,7 @@ export default function Home() {
   // Handle hydration and initial sidebar state
   useEffect(() => {
     setMounted(true);
-    
+
     // Clean up empty chats on load
     setChats(prev => prev.filter(c => c.messages && c.messages.length > 0));
 
@@ -206,7 +206,7 @@ export default function Home() {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-zinc-950">
         <div className="flex flex-col items-center gap-4">
-          <Loader2 className="h-8 w-8 animate-spin text-zinc-400" />
+          <MdOutlineRefresh className="h-8 w-8 animate-spin text-zinc-400" />
           <p className="text-sm text-zinc-500">Loading...</p>
         </div>
       </div>
@@ -258,17 +258,17 @@ export default function Home() {
     try {
       // Prompting for a descriptive noun phrase summarizing the intent
       const titlePrompt = `User: ${firstMessage}\n\nTask: Summarize the user's message into a very brief and professional title (max 5 words). If the message is a greeting or very short, use a simple representative keyword. Respond ONLY with the title text itself in Title Case (e.g., "Project Setup Guide"). Do not mention "max 5 words" or any word counts in the output. (No quotes, no period) (Title Fingerprint: ${chatId || Date.now()})\n\nAssistant: `;
-      
+
       const generatedTitle = await LLMService.generateResponse(MODEL_URL, titlePrompt);
-      
+
       // Clean up the title (sometimes models add quotes, prefixes like "Title:", or extra text)
       let cleanTitle = generatedTitle.trim()
         .replace(/^Title:\s*/i, '')
         .replace(/^["']|["']$/g, '')
         .split('\n')[0];
-        
+
       if (cleanTitle) {
-        setChats(prev => prev.map(c => 
+        setChats(prev => prev.map(c =>
           c.id === chatId ? { ...c, title: cleanTitle } : c
         ));
       }
@@ -457,7 +457,7 @@ export default function Home() {
                   {deleteModalTarget === 'all' ? 'Clear all chats?' : 'Delete chat?'}
                 </h3>
                 <p className="text-[#9aa0a6] text-sm">
-                  {deleteModalTarget === 'all' 
+                  {deleteModalTarget === 'all'
                     ? 'This will permanently delete your entire chat history. This action cannot be undone.'
                     : 'This will permanently delete this conversation from your history. This action cannot be undone.'}
                 </p>
@@ -491,9 +491,9 @@ export default function Home() {
             className="fixed inset-0 z-[200] bg-[#131314] flex flex-col items-center justify-center space-y-6"
           >
             <div className="relative">
-              <div className="w-20 h-20 border-4 border-blue-600/20 border-t-blue-600 rounded-full animate-spin" />
+              <div className="w-20 h-20 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
               <div className="absolute inset-0 flex items-center justify-center">
-                <GemmaIcon size={56} className="text-blue-400" />
+                <GemmaIcon size={56} className="text-primary" />
               </div>
             </div>
             <div className="text-center space-y-4">
@@ -507,7 +507,7 @@ export default function Home() {
               <div className="w-64 mx-auto space-y-2">
                 <div className="h-1.5 w-full bg-[#28292a] rounded-full overflow-hidden">
                   <motion.div
-                    className="h-full bg-blue-600"
+                    className="h-full bg-primary"
                     initial={{ width: 0 }}
                     animate={{ width: `${initProgress}%` }}
                     transition={{ type: 'spring', damping: 20, stiffness: 100 }}
@@ -524,7 +524,7 @@ export default function Home() {
                 Demo not affiliated with Google.
               </div>
               <div className="text-[10px] text-[#5f6368] font-medium">
-                Made by <a href="https://egekaan.dev" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">Ege Kaan Işık</a>
+                Made by <a href="https://egekaan.dev" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Ege Kaan Işık</a>
               </div>
             </div>
           </motion.div>
@@ -562,14 +562,14 @@ export default function Home() {
               onClick={createNewChat}
               className="flex items-center gap-3 px-4 py-3 bg-[#28292a] hover:bg-[#333537] rounded-xl transition-colors flex-1 text-sm font-medium"
             >
-              <Plus size={20} />
+              <MdOutlineAdd size={24} />
               <span>New Chat</span>
             </button>
             <button
               onClick={() => setIsSidebarOpen(false)}
               className="p-3 hover:bg-[#28292a] rounded-xl transition-colors"
             >
-              <X size={20} />
+              <MdOutlineClose size={24} />
             </button>
           </div>
 
@@ -589,7 +589,7 @@ export default function Home() {
                   activeChatId === chat.id ? "bg-[#28292a] text-white" : "hover:bg-[#28292a] text-[#e3e3e3]"
                 )}
               >
-                <MessageSquare size={18} className="shrink-0" />
+                <MdChatBubbleOutline size={20} className="shrink-0" />
                 <div className="flex flex-col flex-1 min-w-0">
                   <span className="truncate">{chat.title}</span>
                   <span className="text-[10px] text-[#5f6368]">{formatRelativeTime(chat.updatedAt)}</span>
@@ -602,7 +602,7 @@ export default function Home() {
                     chat.id === generatingChatId ? "cursor-not-allowed text-[#3c4043]" : "hover:text-red-400"
                   )}
                 >
-                  <Trash2 size={14} />
+                  <MdDeleteOutline size={18} />
                 </button>
               </div>
             ))}
@@ -614,12 +614,12 @@ export default function Home() {
               disabled={isLoading}
               className={cn(
                 "flex items-center gap-3 px-4 py-2 rounded-xl transition-colors w-full text-sm",
-                isLoading 
-                  ? "cursor-not-allowed text-[#3c4043] bg-transparent" 
+                isLoading
+                  ? "cursor-not-allowed text-[#3c4043] bg-transparent"
                   : "hover:bg-red-400/10 text-[#9aa0a6] hover:text-red-400"
               )}
             >
-              <Trash size={18} />
+              <MdOutlineDeleteForever size={20} />
               <span>Clear all chats</span>
             </button>
 
@@ -628,7 +628,7 @@ export default function Home() {
                 Demo not affiliated with Google.
               </div>
               <div className="text-[10px] text-[#5f6368] font-medium">
-                Made by <a href="https://egekaan.dev" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">Ege Kaan Işık</a>
+                Made by <a href="https://egekaan.dev" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Ege Kaan Işık</a>
               </div>
             </div>
           </div>
@@ -651,7 +651,7 @@ export default function Home() {
                 onClick={() => setIsSidebarOpen(true)}
                 className="p-2 hover:bg-[#28292a] rounded-lg shrink-0"
               >
-                <Menu size={24} />
+                <MdOutlineMenu size={24} />
               </button>
             </div>
             {activeChat && activeChat.messages && activeChat.messages.length > 0 && (
@@ -676,12 +676,12 @@ export default function Home() {
                 disabled={activeChat.id === generatingChatId || isInitializing}
                 className={cn(
                   "p-2 hover:bg-red-400/10 text-[#9aa0a6] hover:text-red-400 rounded-lg transition-all",
-                  (activeChat.id === generatingChatId || isInitializing) 
-                    ? "opacity-40 cursor-not-allowed text-zinc-500 grayscale" 
+                  (activeChat.id === generatingChatId || isInitializing)
+                    ? "opacity-40 cursor-not-allowed text-zinc-500 grayscale"
                     : "opacity-100"
                 )}
               >
-                <Trash2 size={20} />
+                <MdDeleteOutline size={24} />
               </button>
             )}
           </div>
@@ -695,7 +695,7 @@ export default function Home() {
           <div className="max-w-3xl mx-auto space-y-8 w-full">
             {!activeChat || !activeChat.messages || activeChat.messages.length === 0 ? (
               <div className="flex flex-col items-center justify-center text-center space-y-6">
-                <div className="w-24 h-24 bg-[#1e1f20] rounded-full flex items-center justify-center text-blue-400 shadow-xl border border-[#28292a]">
+                <div className="w-24 h-24 bg-[#1e1f20] rounded-full flex items-center justify-center text-primary shadow-xl border border-[#28292a]">
                   <GemmaIcon size={72} />
                 </div>
                 <div className="space-y-2">
@@ -733,9 +733,9 @@ export default function Home() {
                 >
                   <div className={cn(
                     "w-10 h-10 rounded-full flex items-center justify-center shrink-0",
-                    msg.role === 'user' ? "bg-blue-600" : "bg-[#1e1f20] border border-[#28292a]"
+                    msg.role === 'user' ? "bg-primary" : "bg-[#1e1f20] border border-[#28292a]"
                   )}>
-                    {msg.role === 'user' ? <User size={20} /> : <GemmaIcon size={24} className="text-blue-400" />}
+                    {msg.role === 'user' ? <MdOutlineAccountCircle size={28} /> : <GemmaIcon size={28} className="text-primary" />}
                   </div>
                   <div className={cn(
                     "flex-1 min-w-0 space-y-2",
@@ -748,7 +748,7 @@ export default function Home() {
                         : "bg-[#1e1f20] text-[#e3e3e3] border border-[#28292a] rounded-tl-none mr-4"
                     )}>
                       <div className="prose prose-invert max-w-full prose-p:leading-relaxed min-w-0">
-                        <ReactMarkdown 
+                        <ReactMarkdown
                           remarkPlugins={[remarkGfm, remarkMath]}
                           rehypePlugins={[
                             [rehypeKatex, { strict: false, output: 'html', throwOnError: false }],
@@ -787,17 +787,17 @@ export default function Home() {
                       <motion.div
                         animate={{ opacity: [0.4, 1, 0.4] }}
                         transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
-                        className="w-1.5 h-1.5 bg-blue-500 rounded-full"
+                        className="w-1.5 h-1.5 bg-primary rounded-full"
                       />
                       <motion.div
                         animate={{ opacity: [0.4, 1, 0.4] }}
                         transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut", delay: 0.2 }}
-                        className="w-1.5 h-1.5 bg-blue-500 rounded-full"
+                        className="w-1.5 h-1.5 bg-primary rounded-full"
                       />
                       <motion.div
                         animate={{ opacity: [0.4, 1, 0.4] }}
                         transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut", delay: 0.4 }}
-                        className="w-1.5 h-1.5 bg-blue-500 rounded-full"
+                        className="w-1.5 h-1.5 bg-primary rounded-full"
                       />
                     </div>
                     <span className="text-[11px] font-medium text-[#9aa0a6]">Gemma is thinking...</span>
@@ -808,7 +808,7 @@ export default function Home() {
 
             {error && (
               <div className="absolute bottom-full left-0 right-0 mb-4 p-3 bg-red-900/20 border border-red-900/50 text-red-400 text-xs rounded-lg flex items-center gap-2 z-20">
-                <X size={14} className="shrink-0" />
+                <MdOutlineClose size={16} className="shrink-0" />
                 <span>{error}</span>
               </div>
             )}
@@ -834,11 +834,11 @@ export default function Home() {
                   className={cn(
                     "p-2 rounded-xl transition-all shrink-0",
                     input.trim() && !isLoading
-                      ? "bg-blue-600 text-white hover:bg-blue-500"
+                      ? "bg-primary text-white"
                       : "text-[#5f6368] cursor-not-allowed"
                   )}
                 >
-                  {isLoading ? <Loader2 size={20} className="animate-spin" /> : <Send size={20} />}
+                  {isLoading ? <MdOutlineRefresh size={22} className="animate-spin" /> : <MdSend size={22} />}
                 </button>
               </div>
             </div>
@@ -846,7 +846,7 @@ export default function Home() {
               This demo is not created, endorsed, or affiliated with Google or Google DeepMind.
               <br />
               Gemma may display inaccurate info, so double-check its responses.
-              <span className="ml-1 font-medium text-blue-400/80">Running 100% on-device.</span>
+              <span className="ml-1 font-medium text-primary/80">Running 100% on-device.</span>
             </p>
           </div>
         </div>

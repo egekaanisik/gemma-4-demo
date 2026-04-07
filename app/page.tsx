@@ -257,7 +257,7 @@ export default function Home() {
   const generateChatTitle = async (chatId: string, firstMessage: string) => {
     try {
       // Prompting for a descriptive noun phrase summarizing the intent
-      const titlePrompt = `User: ${firstMessage}\n\nTask: Summarize the user's message into a very brief and professional title (max 5 words). If the message is a greeting or very short, use a simple representative keyword. Respond ONLY with the title text itself in Title Case (e.g., "Project Setup Guide"). Do not mention "max 5 words" or any word counts in the output. (No quotes, no period) (Title Fingerprint: ${chatId || Date.now()})\n\nAssistant: `;
+      const titlePrompt = `User: ${firstMessage}\n\nTask: Summarize the user's message into a very brief and professional title (max 5 words). If the message is a greeting or very short, use a simple representative keyword. Respond ONLY with the title text itself in Title Case (e.g., "Project Setup Guide"). Do not mention "max 5 words", any word counts, the Title Fingerprint, or keywords about user like "User:" in the output. (No quotes, no period) (Title Fingerprint: ${chatId || Date.now()})\n\nAssistant: `;
 
       const generatedTitle = await LLMService.generateResponse(MODEL_URL, titlePrompt);
 

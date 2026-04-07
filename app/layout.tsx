@@ -1,11 +1,20 @@
 import type { Metadata } from 'next';
-import { Google_Sans } from 'next/font/google';
+import { Google_Sans, Google_Sans_Code } from 'next/font/google';
+import { cn } from '@/lib/utils';
 import './globals.css';
 
 const googleSans = Google_Sans({
   subsets: ['latin'],
   display: 'swap',
   variable: '--font-google-sans',
+  adjustFontFallback: false,
+});
+
+const googleSansCode = Google_Sans_Code({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-google-sans-code',
+  adjustFontFallback: false,
 });
 
 export const metadata: Metadata = {
@@ -32,7 +41,7 @@ export const viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={googleSans.variable}>
+    <html lang="en" className={cn(googleSans.variable, googleSansCode.variable)}>
       <body suppressHydrationWarning className="font-sans">{children}</body>
     </html>
   );

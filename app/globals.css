@@ -22,7 +22,8 @@
 ::-webkit-scrollbar-thumb {
   background-color: #3c4043;
   border-radius: 20px;
-  border: 3px solid #131314; /* Match app background for "floating pill" effect */
+  border: 3px solid #131314;
+  /* Match app background for "floating pill" effect */
 }
 
 ::-webkit-scrollbar-thumb:hover {
@@ -32,6 +33,7 @@
 @theme {
   --color-primary: #2E96FF;
   --font-sans: var(--font-google-sans), "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-google-sans-code), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 }
 
 @layer base {
@@ -44,16 +46,17 @@
   }
 
   .prose pre {
-    @apply !bg-[#000000] !p-4 !rounded-xl !border !border-[#28292a] !my-6 !overflow-x-auto !whitespace-pre;
+    @apply !bg-[#000000]/80 backdrop-blur-md !p-4 !rounded-xl !border !border-[#28292a] !my-6 !overflow-x-auto !whitespace-pre !font-mono shadow-2xl shadow-black/40;
+    border-top: 1px solid rgba(46, 150, 255, 0.1);
   }
 
   .prose code:not(pre code) {
-    @apply !bg-[#000000] !text-primary !px-1.5 !py-0.5 !rounded-md !font-mono !text-[0.8em] !border !border-[#28292a];
+    @apply !bg-[#000000]/50 backdrop-blur-sm !text-primary !px-1.5 !py-0.5 !rounded-md !font-mono !text-[0.8em] !border !border-[#28292a] shadow-sm;
   }
 
   .prose code.hljs,
   .prose pre code {
-    background: transparent !important;
+    @apply !bg-transparent !font-mono;
   }
 
   .prose code {
@@ -93,6 +96,7 @@
   .prose td {
     @apply p-2 text-xs border border-[#3c4043];
   }
+
   .prose .katex-display {
     @apply my-4 overflow-x-auto overflow-y-hidden py-2;
   }

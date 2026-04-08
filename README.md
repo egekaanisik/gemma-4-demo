@@ -1,5 +1,5 @@
 # Gemma 4 Demo 🚀
-![Gemma 4 Demo Screenshot](./screenshot.png)
+![Gemma 4 Demo Screenshot](./public/screenshot.png)
 ### High-Performance • 100% On-Device • Privacy-First AI
 
 **[Live Demo: gemma.egekaan.dev](https://gemma.egekaan.dev)**

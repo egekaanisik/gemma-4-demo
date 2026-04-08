@@ -19,5 +19,13 @@
   ],
   "theme_color": "#2E96FF",
   "background_color": "#131314",
-  "display": "standalone"
+  "display": "standalone",
+  "screenshots": [
+    {
+      "src": "/screenshot.png",
+      "sizes": "1520x1060",
+      "type": "image/png",
+      "form_factor": "wide"
+    }
+  ]
 }

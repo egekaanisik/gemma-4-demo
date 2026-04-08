@@ -17,12 +17,15 @@ import {
   MdOutlineHistoryEdu,
   MdOutlineScience,
   MdOutlineCode,
+  MdKeyboardArrowDown,
+  MdKeyboardArrowUp,
 } from 'react-icons/md';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import rehypeHighlight from 'rehype-highlight';
+import rehypeRaw from 'rehype-raw';
 import 'katex/dist/katex.min.css';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { LLMService } from '@/lib/llm';
@@ -33,6 +36,9 @@ interface Message {
   role: 'user' | 'assistant';
   content: string;
   timestamp: number;
+  reasoning?: string;
+  reasoningDuration?: number;
+  isReasoningComplete?: boolean;
 }
 
 interface Chat {
@@ -69,6 +75,67 @@ const GemmaIcon = ({ size = 24, className = "" }: { size?: number, className?: s
   </svg>
 );
 
+// Sub-component for Collapsible Reasoning
+const ReasoningBlock = ({ reasoning, duration, isComplete }: { reasoning?: string; duration?: number; isComplete?: boolean }) => {
+  const [isExpanded, setIsExpanded] = useState(true); // Default to expanded while generating
+  const [hasManuallyCollapsed, setHasManuallyCollapsed] = useState(false);
+  
+  // Auto-expand/collapse logic
+  useEffect(() => {
+    if (isComplete && !hasManuallyCollapsed) {
+      setIsExpanded(false);
+    }
+  }, [isComplete, hasManuallyCollapsed]);
+
+  if (!reasoning) return null;
+
+  return (
+    <div className="w-full mb-2">
+      <button
+        onClick={() => {
+          setIsExpanded(!isExpanded);
+          if (isExpanded) setHasManuallyCollapsed(true);
+        }}
+        className={cn(
+          "flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-wider transition-all duration-300 border",
+          isExpanded 
+            ? "bg-primary/10 border-primary/30 text-primary shadow-sm" 
+            : "bg-zinc-800/40 border-zinc-700/50 text-zinc-400 hover:border-zinc-600 hover:bg-zinc-800/60"
+        )}
+      >
+        <MdOutlineLightbulb size={14} />
+        <span>
+          {isComplete 
+           ? `Thought for ${duration?.toFixed(1) || '0.0'}s` 
+           : `Reasoning in progress... ${duration?.toFixed(1) || '0.0'}s`}
+        </span>
+        {isExpanded ? <MdKeyboardArrowUp size={16} /> : <MdKeyboardArrowDown size={16} />}
+      </button>
+      
+      <AnimatePresence>
+        {isExpanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.3, ease: "easeInOut" }}
+            className="overflow-hidden"
+          >
+            <div className="mt-2 p-4 bg-zinc-900/40 border-l-2 border-primary/40 rounded-r-xl text-xs italic text-zinc-400 font-medium backdrop-blur-md prose prose-invert prose-sm max-w-full prose-p:leading-relaxed">
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm, remarkMath]}
+                rehypePlugins={[[rehypeKatex, { strict: false }], rehypeHighlight, rehypeRaw]}
+              >
+                {reasoning}
+              </ReactMarkdown>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
 export default function Home() {
   const [chats, setChats] = useLocalStorage<Chat[]>('gemma-chats', []);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
@@ -83,6 +150,7 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
   const [deleteModalTarget, setDeleteModalTarget] = useState<'all' | string | null>(null);
+  const [isReasoningEnabled, setIsReasoningEnabled] = useLocalStorage<boolean>('gemma-reasoning', true);
   const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 0);
   const [loadingInfoIndex, setLoadingInfoIndex] = useState(0);
 
@@ -281,8 +349,8 @@ export default function Home() {
 
   const generateChatTitle = async (chatId: string, firstMessage: string) => {
     try {
-      // Prompting for a descriptive noun phrase summarizing the intent
-      const titlePrompt = `User: ${firstMessage}\n\nTask: Summarize the user's message into a very brief and professional title (max 5 words). If the message is a greeting or very short, use a simple representative keyword. Respond ONLY with the title text itself in Title Case (e.g., "Project Setup Guide"). Do not mention "max 5 words", any word counts, the Title Fingerprint, or keywords about user like "User:" in the output. (No quotes, no period) (Title Fingerprint: ${chatId || Date.now()})\n\nAssistant: `;
+      // Prompting for a descriptive noun phrase summarizing the intent using Gemma 4 formatting
+      const titlePrompt = `<|turn>system You are a helpful assistant that summarizes messages into brief titles.<turn|>\n<|turn>user Summarize the following message into a professional title (max 5 words). Respond ONLY with the title text itself in Title Case. (No quotes, no period). The message: ${firstMessage}<turn|>\n<|turn>model `;
 
       const generatedTitle = await LLMService.generateResponse(MODEL_URL, titlePrompt);
 
@@ -384,14 +452,23 @@ export default function Home() {
       const allMessages = [...contextMessages, userMessage];
 
       // System instructions for Gemma with per-chat entropy injection
-      const systemInstruction = `You are Gemma 4 E4B, a high-performance model created by Google DeepMind and featured in this text-only chat demo by Ege Kaan Işık. Your goal is to be a brilliant, supportive, and witty collaborator providing accurate text responses in the same language as the user's input. Avoid filler phrases, generic AI introductions, or unnecessary prose, and use standard Markdown for all formatting. Your guiding principle is that intelligence-per-parameter is the ultimate metric for exploring the capabilities of this model. Your messages should not contain any 'Self-Correction/Analysis' or internal reasoning blocks. IMPORTANT: Generate ONLY the Assistant's response. Do NOT generate any 'User:' turns or additional dialogue. Stop immediately after finishing your answer. (Conversation Fingerprint: ${activeChatId || Date.now()})`;
+      // Only add the <|think|> token if enabled, without adding extra textual instructions
+      const systemInstruction = `${isReasoningEnabled ? '<|think|>' : ''}You are Gemma 4 E4B, a high-performance model created by Google DeepMind and featured in this text-only chat demo by Ege Kaan Işık. Your goal is to be a brilliant, supportive, and witty collaborator providing accurate text responses in the same language as the user's input. Avoid filler phrases, generic AI introductions, or unnecessary prose, and use standard Markdown for all formatting. Your guiding principle is that intelligence-per-parameter is the ultimate metric for exploring the capabilities of this model. Your messages should not contain any 'Self-Correction/Analysis' or internal reasoning blocks. IMPORTANT: Generate ONLY the Assistant's response. Do NOT generate any 'User:' turns or additional dialogue. Stop immediately after finishing your answer. (Conversation Fingerprint: ${activeChatId || Date.now()})`;
 
-      // Construct prompt with context
-      const context = allMessages.map(m =>
-        `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}\n`
-      ).join('\n');
+      // Construct prompt with context using Gemma 4 formatting
+      const systemPrompt = `<|turn>system ${systemInstruction}<turn|>`;
+      
+      // Clean previous assistant messages from reasoning blocks (<|channel>...<channel|>) 
+      // to prevent the model from seeing its own previous thoughts in the context window.
+      const context = allMessages.map(m => {
+        let content = m.content;
+        if (m.role === 'assistant') {
+          content = content.replace(/<\|channel>[\s\S]*?<channel\|>/g, '').trim();
+        }
+        return `<|turn>${m.role === 'user' ? 'user' : 'model'} ${content}<turn|>`;
+      }).join('\n');
 
-      const fullPrompt = `${systemInstruction}\n\n${context}Assistant: `;
+      const fullPrompt = `${systemPrompt}\n${context}\n<|turn>model `;
 
       // If this was the first exchange (only 1 user message in history), generate a creative title BEFORE the main response
       if (allMessages.length === 1) {
@@ -418,17 +495,43 @@ export default function Home() {
         return c;
       }));
 
+      let reasoningStartTime: number | null = null;
+      let reasoningEndTime: number | null = null;
+
       await LLMService.generateResponse(MODEL_URL, fullPrompt, (partial, done) => {
-        // Truncate if model starts generating User turns
-        let cleanPartial = partial;
-        const stopMarkers = ['User:', 'Assistant:', 'user:', 'assistant:'];
+        // Parse reasoning blocks and final content
+        let reasoning = "";
+        let finalContent = partial;
+
+        const startIdx = partial.indexOf("<|channel>thought");
+        const endIdx = partial.indexOf("<channel|>");
+
+        if (startIdx !== -1) {
+          if (!reasoningStartTime) reasoningStartTime = Date.now();
+          
+          if (endIdx !== -1) {
+            if (!reasoningEndTime) reasoningEndTime = Date.now();
+            reasoning = partial.substring(startIdx + 17, endIdx).trim();
+            finalContent = partial.substring(endIdx + 10).trim();
+          } else {
+            reasoning = partial.substring(startIdx + 17).trim();
+            finalContent = "";
+          }
+        }
+
+        // Truncate if model starts generating new turns or fallback markers
+        const stopMarkers = ['<|turn>', 'User:', 'Assistant:', 'user:', 'assistant:'];
         for (const marker of stopMarkers) {
-          const index = cleanPartial.indexOf(marker);
+          const index = finalContent.indexOf(marker);
           if (index !== -1) {
-            cleanPartial = cleanPartial.slice(0, index).trim();
+            finalContent = finalContent.slice(0, index).trim();
             break;
           }
         }
+
+        const duration = reasoningStartTime && reasoningEndTime 
+          ? (reasoningEndTime - reasoningStartTime) / 1000 
+          : reasoningStartTime ? (Date.now() - reasoningStartTime) / 1000 : 0;
 
         setChats(prev => prev.map(c => {
           const isTargetChat = c.id === activeChatId || (c.messages.length > 0 && c.messages[c.messages.length - 1].id === assistantMessageId);
@@ -440,7 +543,13 @@ export default function Home() {
                 ...c,
                 messages: [
                   ...msgs.slice(0, -1),
-                  { ...lastMsg, content: cleanPartial }
+                  { 
+                    ...lastMsg, 
+                    content: finalContent,
+                    reasoning: reasoning,
+                    reasoningDuration: duration,
+                    isReasoningComplete: !!reasoningEndTime
+                  }
                 ]
               };
             }
@@ -742,7 +851,7 @@ export default function Home() {
             )}
           </div>
 
-          <div className="ml-auto z-10 flex items-center gap-1">
+          <div className="ml-auto z-10 flex items-center gap-2">
             {activeChat && activeChat.messages && activeChat.messages.length > 0 && (
               <button
                 onClick={(e) => deleteChat(activeChat.id, e)}
@@ -887,27 +996,40 @@ export default function Home() {
                     "flex-1 min-w-0 space-y-2",
                     msg.role === 'user' ? "flex flex-col items-end" : "flex flex-col items-start"
                   )}>
-                    <div className={cn(
-                      "block max-w-full p-4 rounded-2xl text-sm leading-relaxed min-w-0 shadow-sm",
-                      msg.role === 'user'
-                        ? "bg-[#28292a] text-white rounded-tr-none ml-4"
-                        : "bg-[#1e1f20] text-[#e3e3e3] border border-[#28292a] rounded-tl-none mr-4"
-                    )}>
-                      <div className="prose prose-invert max-w-full prose-p:leading-relaxed min-w-0">
-                        <ReactMarkdown
-                          remarkPlugins={[remarkGfm, remarkMath]}
-                          rehypePlugins={[
-                            [rehypeKatex, { strict: false, output: 'html', throwOnError: false }],
-                            rehypeHighlight
-                          ]}
-                        >
-                          {msg.content || (isLoading && msg.role === 'assistant' ? "..." : "")}
-                        </ReactMarkdown>
-                      </div>
-                    </div>
-                    <div className="text-[10px] text-[#5f6368] px-1">
-                      {formatTime(msg.timestamp)}
-                    </div>
+                    {msg.role === 'assistant' && msg.reasoning && (
+                      <ReasoningBlock 
+                        reasoning={msg.reasoning} 
+                        duration={msg.reasoningDuration} 
+                        isComplete={msg.isReasoningComplete} 
+                      />
+                    )}
+                    
+                    {(msg.role === 'user' || msg.content) && (
+                      <>
+                        <div className={cn(
+                          "block max-w-full p-4 rounded-2xl text-sm leading-relaxed min-w-0 shadow-sm transition-all duration-500",
+                          msg.role === 'user'
+                            ? "bg-[#28292a] text-white rounded-tr-none ml-4"
+                            : "bg-[#1e1f20] text-[#e3e3e3] border border-[#28292a] rounded-tl-none mr-4"
+                        )}>
+                          <div className="prose prose-invert max-w-full prose-p:leading-relaxed min-w-0">
+                            <ReactMarkdown
+                              remarkPlugins={[remarkGfm, remarkMath]}
+                              rehypePlugins={[
+                                [rehypeKatex, { strict: false, output: 'html', throwOnError: false }],
+                                rehypeHighlight,
+                                rehypeRaw
+                              ]}
+                            >
+                              {msg.content || (isLoading && msg.role === 'assistant' && !msg.reasoning ? "..." : "")}
+                            </ReactMarkdown>
+                          </div>
+                        </div>
+                        <div className="text-[10px] text-[#5f6368] px-1">
+                          {formatTime(msg.timestamp)}
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
               ))
@@ -958,7 +1080,7 @@ export default function Home() {
                 <span>{error}</span>
               </div>
             )}
-            <div className="relative flex items-end bg-[#1e1f20] rounded-2xl border border-[#28292a] focus-within:border-[#3c4043] transition-all shadow-lg overflow-hidden">
+            <div className="relative flex items-end bg-[#1e1f20] rounded-2xl border border-[#28292a] focus-within:border-[#3c4043] transition-all shadow-lg overflow-hidden pl-4">
               <textarea
                 ref={textareaRef}
                 value={input}
@@ -970,10 +1092,31 @@ export default function Home() {
                   }
                 }}
                 placeholder="Message Gemma 4..."
-                className="flex-1 bg-transparent p-4 resize-none focus:outline-none text-sm max-h-[132px] overflow-y-auto custom-scrollbar"
+                className="flex-1 bg-transparent py-4 resize-none focus:outline-none text-sm max-h-[132px] overflow-y-auto custom-scrollbar"
                 rows={1}
               />
-              <div className="p-2 flex items-center justify-center">
+              <div className="p-2 flex items-center gap-1">
+                <button
+                  onClick={() => setIsReasoningEnabled(!isReasoningEnabled)}
+                  className={cn(
+                    "p-2 rounded-xl transition-all duration-300 relative group",
+                    isReasoningEnabled 
+                      ? "text-primary bg-primary/10" 
+                      : "text-[#5f6368] hover:text-[#9aa0a6] hover:bg-[#28292a]"
+                  )}
+                  title={isReasoningEnabled ? "Deep Thinking Enabled" : "Enable Deep Thinking"}
+                >
+                  <MdOutlineLightbulb size={22} />
+                  {isReasoningEnabled && (
+                    <motion.div
+                      layoutId="input-glow"
+                      className="absolute inset-0 bg-primary/10 blur-md rounded-xl -z-10"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                    />
+                  )}
+                </button>
+                
                 <button
                   onClick={handleSendMessage}
                   disabled={!input.trim() || isLoading}

@@ -1,5 +1,7 @@
 # Gemma 4 Demo 🚀
+
 ![Gemma 4 Demo Screenshot](./public/screenshot.png)
+
 ### High-Performance • 100% On-Device • Privacy-First AI
 
 **[Live Demo: gemma.egekaan.dev](https://gemma.egekaan.dev)**
@@ -21,35 +23,53 @@ This application was built using **Google AI Studio** and **Antigravity**. It is
 
 ---
 
+## 📱 Mobile Compatibility & Constraints
+
+While this application is fully responsive, running high-performance models like **Gemma 4** on mobile devices comes with significant constraints:
+
+- **WebGPU Support**: While WebGPU is now supported by default in most modern mobile browsers, availability remains dependent on specific hardware capabilities and OS versions. On some setups, you may still need to verify compatibility or enable technical flags for high-performance inference.
+- **Memory (RAM) Limits**: Gemma 4 is a relatively large model. Even on high-end hardware, mobile browsers have strict per-tab memory ceilings. Exceeding these during the download or initialization phase may trigger system-level safety mechanisms.
+- **Thermal Throttling**: Intensive on-device GPU inference can cause mobile devices to heat up, leading to performance throttling.
+
+**Best Experience**: For stable performance, it is recommended to use a modern desktop browser on a machine with a dedicated GPU.
+
+---
+
 ## 🛠️ Tech Stack
 
 - **Framework**: [Next.js 16](https://nextjs.org/) (App Router & Turbopack)
-- **Development Platforms**: [Google AI Studio (Build Mode)](https://aistudio.google.com/apps) & [Antigravity](https://antigravity.google/)
-- **Model Interface**: [MediaPipe LLM Inference](https://developers.google.com/mediapipe/solutions/genai/llm_inference)
-- **Styling**: Vanilla CSS & Tailwind CSS 4.0
-- **Animations**: [Motion](https://motion.dev/)
-- **Icons**: [Lucide React](https://lucide.dev/)
+- **Model Inference**: [MediaPipe GenAI](https://developers.google.com/mediapipe/solutions/genai/llm_inference) (100% On-Device WebGPU)
+- **Styling**: [Tailwind CSS 4](https://tailwindcss.com/) & Vanilla CSS
+- **Animations**: [Motion](https://motion.dev/) (formerly Framer Motion)
+- **Icons**: [React Icons](https://react-icons.github.io/react-icons/) (Material Design)
+- **Rendering**: [React Markdown](https://github.com/remarkjs/react-markdown) with [KaTeX](https://katex.org/) (LaTeX) & [Highlight.js](https://highlightjs.org/) (Syntax Highlighting)
+- **Development**: [Google AI Studio (Build Mode)](https://aistudio.google.com/apps) & [Antigravity](https://antigravity.google/)
 
 ---
 
 ## 🚀 Getting Started
 
 ### Prerequisites
+
 - Node.js (v18+)
 - A browser with WebGPU support (Check compatibility [here](https://caniuse.com/webgpu)).
 
 ### 1. Installation
+
 ```bash
 npm install
 ```
 
 ### 2. Run Development Server
+
 ```bash
 npm run dev
 ```
 
 ### 3. Production Build & Service Worker
+
 The project includes a custom build pipeline that automatically generates the Service Worker manifest for offline support.
+
 ```bash
 npm run build
 npm start
@@ -67,9 +87,11 @@ npm start
 ---
 
 ## 📄 Non-Affiliation Disclaimer
+
 This demo is an independent showcase created by **[Ege Kaan Işık](https://egekaan.dev)**. It is built using the open-weights Gemma model provided by Google but is not a product of, or officially supported by, Google or Google DeepMind.
 
 ---
 
 ## License
+
 MIT

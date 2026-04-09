@@ -19,6 +19,8 @@ import {
   MdOutlineCode,
   MdKeyboardArrowDown,
   MdKeyboardArrowUp,
+  MdContentCopy,
+  MdCheck,
 } from 'react-icons/md';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -75,11 +77,83 @@ const GemmaIcon = ({ size = 24, className = "" }: { size?: number, className?: s
   </svg>
 );
 
+const CopyButton = ({ text, className = "", iconSize = 16 }: { text: string; className?: string; iconSize?: number }) => {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
+
+  return (
+    <button
+      onClick={handleCopy}
+      className={cn(
+        "flex items-center gap-1.5 transition-all duration-300",
+        className
+      )}
+      title="Copy to clipboard"
+    >
+      {copied ? (
+        <>
+          <MdCheck size={iconSize} className="text-green-400" />
+          <span className="text-[10px] font-bold text-green-400 tracking-tight">Copied</span>
+        </>
+      ) : (
+        <>
+          <MdContentCopy size={iconSize} />
+          <span className="text-[10px] font-bold tracking-tight">Copy</span>
+        </>
+      )}
+    </button>
+  );
+};
+
+// Utility for formatting time
+const formatTime = (timestamp: number) => {
+  return new Intl.DateTimeFormat('en-US', {
+    hour: 'numeric',
+    minute: 'numeric',
+    hour12: true
+  }).format(new Date(timestamp));
+};
+
+const formatRelativeTime = (timestamp: number) => {
+  const now = Date.now();
+  const diff = now - timestamp;
+  const minutes = Math.floor(diff / 60000);
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+
+  if (minutes < 1) return 'Just now';
+  if (minutes < 60) return `${minutes}m ago`;
+  if (hours < 24) return `${hours}h ago`;
+  if (days < 7) return `${days}d ago`;
+  return new Date(timestamp).toLocaleDateString();
+};
+
+const extractText = (children: any): string => {
+  return React.Children.toArray(children)
+    .map((child: any) => {
+      if (typeof child === 'string') return child;
+      if (typeof child === 'number') return String(child);
+      if (child.props?.children) return extractText(child.props.children);
+      return '';
+    })
+    .join('');
+};
+
 // Sub-component for Collapsible Reasoning
 const ReasoningBlock = ({ reasoning, duration, isComplete }: { reasoning?: string; duration?: number; isComplete?: boolean }) => {
   const [isExpanded, setIsExpanded] = useState(true); // Default to expanded while generating
   const [hasManuallyCollapsed, setHasManuallyCollapsed] = useState(false);
-  
+
   // Auto-expand/collapse logic
   useEffect(() => {
     if (isComplete && !hasManuallyCollapsed) {
@@ -98,20 +172,20 @@ const ReasoningBlock = ({ reasoning, duration, isComplete }: { reasoning?: strin
         }}
         className={cn(
           "flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-wider transition-all duration-300 border",
-          isExpanded 
-            ? "bg-primary/10 border-primary/30 text-primary shadow-sm" 
+          isExpanded
+            ? "bg-primary/10 border-primary/30 text-primary shadow-sm"
             : "bg-zinc-800/40 border-zinc-700/50 text-zinc-400 hover:border-zinc-600 hover:bg-zinc-800/60"
         )}
       >
         <MdOutlineLightbulb size={14} />
         <span>
-          {isComplete 
-           ? `Thought for ${duration?.toFixed(1) || '0.0'}s` 
-           : `Reasoning in progress... ${duration?.toFixed(1) || '0.0'}s`}
+          {isComplete
+            ? `Thought for ${duration?.toFixed(1) || '0.0'}s`
+            : `Reasoning in progress... ${duration?.toFixed(1) || '0.0'}s`}
         </span>
         {isExpanded ? <MdKeyboardArrowUp size={16} /> : <MdKeyboardArrowDown size={16} />}
       </button>
-      
+
       <AnimatePresence>
         {isExpanded && (
           <motion.div
@@ -136,10 +210,113 @@ const ReasoningBlock = ({ reasoning, duration, isComplete }: { reasoning?: strin
   );
 };
 
+// Message item component for better performance and hook support
+const ChatMessage = ({ 
+  msg, 
+  activeChatId, 
+  generatingChatId, 
+  isLoading, 
+  isLast 
+}: { 
+  msg: Message; 
+  activeChatId?: string | null;
+  generatingChatId?: string | null;
+  isLoading: boolean;
+  isLast: boolean;
+}) => {
+  const isGeneratingCurrent = isLoading && isLast && msg.role === 'assistant' && activeChatId === generatingChatId;
+
+  // Memoize markdown components to prevent flickering during streams
+  const markdownComponents = useMemo(() => ({
+    pre: ({ node, children, ...props }: any) => {
+      const codeContent = extractText(children);
+      return (
+        <div className="relative group/code my-6">
+          <pre {...props} className="!my-0">
+            {children}
+          </pre>
+          {!isGeneratingCurrent && (
+            <div className="absolute top-3 right-3 opacity-0 group-hover/code:opacity-100 transition-opacity">
+              <CopyButton 
+                text={codeContent} 
+                className="bg-black/60 hover:bg-black/80 text-zinc-400 hover:text-white px-2 py-1 rounded-md border border-white/10 backdrop-blur-md shadow-lg"
+              />
+            </div>
+          )}
+        </div>
+      );
+    }
+  }), [isGeneratingCurrent]);
+
+  return (
+    <div className={cn(
+      "flex gap-4 md:gap-6",
+      msg.role === 'user' ? "flex-row-reverse" : "flex-row"
+    )}>
+      <div className={cn(
+        "w-10 h-10 rounded-full flex items-center justify-center shrink-0",
+        msg.role === 'user' ? "bg-primary" : "bg-[#1e1f20] border border-[#28292a]"
+      )}>
+        {msg.role === 'user' ? <MdOutlineAccountCircle size={28} /> : <GemmaIcon size={28} className="text-primary" />}
+      </div>
+      <div className={cn(
+        "flex-1 min-w-0 space-y-2",
+        msg.role === 'user' ? "flex flex-col items-end" : "flex flex-col items-start"
+      )}>
+        {msg.role === 'assistant' && msg.reasoning && (
+          <ReasoningBlock 
+            reasoning={msg.reasoning} 
+            duration={msg.reasoningDuration} 
+            isComplete={msg.isReasoningComplete} 
+          />
+        )}
+        
+        {(msg.role === 'user' || msg.content) && (
+          <>
+            <div className={cn(
+              "block max-w-full p-4 rounded-2xl text-sm leading-relaxed min-w-0 shadow-sm transition-all duration-500 break-words",
+              msg.role === 'user'
+                ? "bg-[#28292a] text-white rounded-tr-none ml-4"
+                : "bg-[#1e1f20] text-[#e3e3e3] border border-[#28292a] rounded-tl-none mr-4"
+            )}>
+              <div className="prose prose-invert max-w-full prose-p:leading-relaxed min-w-0">
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm, remarkMath]}
+                  rehypePlugins={[
+                    [rehypeKatex, { strict: false, output: 'html', throwOnError: false }],
+                    rehypeHighlight,
+                    rehypeRaw
+                  ]}
+                  components={markdownComponents}
+                >
+                  {msg.content || (isLoading && msg.role === 'assistant' && !msg.reasoning ? "..." : "")}
+                </ReactMarkdown>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 px-1">
+              <div className="text-[10px] text-[#5f6368]">
+                {msg.timestamp ? formatTime(msg.timestamp) : ''}
+              </div>
+              {msg.role === 'assistant' && !isGeneratingCurrent && msg.content && (
+                <CopyButton 
+                  text={msg.content} 
+                  className="text-[#5f6368] hover:text-primary p-0 bg-transparent border-none"
+                  iconSize={14}
+                />
+              )}
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
+
 export default function Home() {
   const [chats, setChats] = useLocalStorage<Chat[]>('gemma-chats', []);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [input, setInput] = useState('');
+  const [inputCharLimit] = useState(4000);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -153,9 +330,24 @@ export default function Home() {
   const [isReasoningEnabled, setIsReasoningEnabled] = useLocalStorage<boolean>('gemma-reasoning', true);
   const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 0);
   const [loadingInfoIndex, setLoadingInfoIndex] = useState(0);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Detect mobile device
+  useEffect(() => {
+    const checkMobile = () => {
+      const UA = navigator.userAgent || navigator.vendor || (window as any).opera;
+      return /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(UA.toLowerCase());
+    };
+    if (checkMobile()) {
+      setIsMobile(true);
+      setInitStatus('Compatibility Error');
+      setError('Gemma 4 E4B on web is not fully compatible with mobile devices. For the best experience and to access on-device processing, please visit this page from a computer.');
+    }
+  }, []);
 
   const loadingInfos = useMemo(() => [
     { title: "On-Device Processing", desc: "Your data never leaves your machine. Computation happens locally in your GPU." },
+    { title: "Deep Thinking", desc: "Advanced reasoning mode allows the model to think through complex problems step-by-step." },
     { title: "Self-Caching", desc: "Once downloaded, the model is stored in your browser's persistent cache." },
     { title: "High Performance", desc: "Leveraging MediaPipe LLM Inference for low-latency browser AI." },
     { title: "Total Privacy", desc: "Works even without an internet connection after the initialization phase." }
@@ -172,28 +364,6 @@ export default function Home() {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-  const formatTime = (timestamp: number) => {
-    return new Intl.DateTimeFormat('en-US', {
-      hour: 'numeric',
-      minute: 'numeric',
-      hour12: true
-    }).format(new Date(timestamp));
-  };
-
-  const formatRelativeTime = (timestamp: number) => {
-    const now = Date.now();
-    const diff = now - timestamp;
-    const minutes = Math.floor(diff / 60000);
-    const hours = Math.floor(minutes / 60);
-    const days = Math.floor(hours / 24);
-
-    if (minutes < 1) return 'Just now';
-    if (minutes < 60) return `${minutes}m ago`;
-    if (hours < 24) return `${hours}h ago`;
-    if (days < 7) return `${days}d ago`;
-    return new Date(timestamp).toLocaleDateString();
-  };
 
   const updateInput = (value: string) => {
     setInput(value);
@@ -236,6 +406,7 @@ export default function Home() {
   useEffect(() => {
     if (!mounted) return;
     const initModel = async () => {
+      if (isMobile) return;
       setIsInitializing(true);
       setInitProgress(0);
       setInitStatus('Initializing');
@@ -350,15 +521,17 @@ export default function Home() {
   const generateChatTitle = async (chatId: string, firstMessage: string) => {
     try {
       // Prompting for a descriptive noun phrase summarizing the intent using Gemma 4 formatting
-      const titlePrompt = `<|turn>system You are a helpful assistant that summarizes messages into brief titles.<turn|>\n<|turn>user Summarize the following message into a professional title (max 5 words). Respond ONLY with the title text itself in Title Case. (No quotes, no period). The message: ${firstMessage}<turn|>\n<|turn>model `;
+      const titlePrompt = `<|turn>system You are a professional summarizer that transforms user messages into high-quality, brief titles that describes the user's intent (max 5 words). You MUST respond in the same language as the user's input. For example: If the input is in Turkish, the title must be in Turkish. If you are not sure about the input language, use English as default. Respond ONLY with the title text itself in Title Case (where applicable). Do not use quotes or periods.<turn|>\n<|turn>user ${firstMessage}<turn|>\n<|turn>model `;
 
       const generatedTitle = await LLMService.generateResponse(MODEL_URL, titlePrompt);
 
-      // Clean up the title (sometimes models add quotes, prefixes like "Title:", or extra text)
+      // Clean up the title (sometimes models add reasoning blocks, add quotes, prefixes like "Title:", or extra text)
       let cleanTitle = generatedTitle.trim()
+        .replace(/<\|channel>[\s\S]*?<channel\|>/g, '')
         .replace(/^Title:\s*/i, '')
         .replace(/^["']|["']$/g, '')
-        .split('\n')[0];
+        .split('\n')[0]
+        .trim();
 
       if (cleanTitle) {
         setChats(prev => prev.map(c =>
@@ -371,7 +544,7 @@ export default function Home() {
   };
 
   const handleSendMessage = async () => {
-    if (!input.trim() || isLoading || isInitializing) return;
+    if (!input.trim() || input.length > inputCharLimit || isLoading || isInitializing) return;
 
     let currentChatId = activeChatId;
     let currentChats = [...chats];
@@ -457,7 +630,7 @@ export default function Home() {
 
       // Construct prompt with context using Gemma 4 formatting
       const systemPrompt = `<|turn>system ${systemInstruction}<turn|>`;
-      
+
       // Clean previous assistant messages from reasoning blocks (<|channel>...<channel|>) 
       // to prevent the model from seeing its own previous thoughts in the context window.
       const context = allMessages.map(m => {
@@ -508,7 +681,7 @@ export default function Home() {
 
         if (startIdx !== -1) {
           if (!reasoningStartTime) reasoningStartTime = Date.now();
-          
+
           if (endIdx !== -1) {
             if (!reasoningEndTime) reasoningEndTime = Date.now();
             reasoning = partial.substring(startIdx + 17, endIdx).trim();
@@ -529,8 +702,8 @@ export default function Home() {
           }
         }
 
-        const duration = reasoningStartTime && reasoningEndTime 
-          ? (reasoningEndTime - reasoningStartTime) / 1000 
+        const duration = reasoningStartTime && reasoningEndTime
+          ? (reasoningEndTime - reasoningStartTime) / 1000
           : reasoningStartTime ? (Date.now() - reasoningStartTime) / 1000 : 0;
 
         setChats(prev => prev.map(c => {
@@ -543,8 +716,8 @@ export default function Home() {
                 ...c,
                 messages: [
                   ...msgs.slice(0, -1),
-                  { 
-                    ...lastMsg, 
+                  {
+                    ...lastMsg,
                     content: finalContent,
                     reasoning: reasoning,
                     reasoningDuration: duration,
@@ -568,7 +741,10 @@ export default function Home() {
   };
 
   return (
-    <div className="flex h-screen bg-[#131314] text-[#e3e3e3] font-sans overflow-hidden">
+    <div className={cn(
+      "flex h-[100dvh] bg-[#131314] text-[#e3e3e3] font-sans overflow-hidden",
+      (isInitializing || (isMobile && mounted)) && "fixed inset-0"
+    )}>
       {/* Delete Confirmation Modal */}
       <AnimatePresence>
         {deleteModalTarget && (
@@ -615,14 +791,13 @@ export default function Home() {
         )}
       </AnimatePresence>
 
-      {/* Initialization Loading Screen */}
       <AnimatePresence>
-        {isInitializing && (
+        {(isInitializing || (isMobile && mounted)) && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[200] bg-[#131314] flex flex-col items-center justify-center space-y-6"
+            exit={isMobile ? undefined : { opacity: 0 }}
+            className="fixed inset-0 z-[200] bg-[#131314] flex flex-col items-center justify-center space-y-6 overflow-hidden overscroll-none"
           >
             <div className="relative mb-12">
               <motion.div
@@ -651,54 +826,73 @@ export default function Home() {
             </div>
 
             <div className="w-full max-w-lg flex flex-col items-center space-y-12 z-10">
-              <div className="text-center space-y-4">
+              <div className="text-center space-y-4 px-6">
                 <motion.h2
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="text-4xl md:text-5xl font-medium text-white tracking-tight"
+                  className="text-4xl md:text-5xl font-medium tracking-tight text-white"
                 >
                   Gemma 4
                 </motion.h2>
-                <motion.p
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.2 }}
-                  className="text-[#9aa0a6] text-sm md:text-base font-medium tracking-wide"
-                >
-                  Downloading and initializing Gemma 4 E4B...
-                </motion.p>
-              </div>
-
-              <div className="h-20 flex items-center justify-center max-w-sm mx-auto text-center">
-                <AnimatePresence mode="wait">
-                  <motion.div
-                    key={loadingInfoIndex}
-                    initial={{ opacity: 0, y: 15 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -15 }}
-                    transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-                    className="space-y-2 px-6"
+                {!isMobile && (
+                  <motion.p
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.2 }}
+                    className="text-[#9aa0a6] text-sm md:text-base font-medium tracking-wide"
                   >
-                    <p className="text-white text-[10px] font-bold uppercase tracking-[0.3em] opacity-40">{loadingInfos[loadingInfoIndex].title}</p>
-                    <p className="text-[#9aa0a6] text-[13px] leading-relaxed font-medium">{loadingInfos[loadingInfoIndex].desc}</p>
-                  </motion.div>
-                </AnimatePresence>
+                    Downloading and initializing Gemma 4 E4B...
+                  </motion.p>
+                )}
               </div>
 
-              <div className="w-full max-w-[280px] space-y-4">
-                <div className="h-[2px] w-full bg-[#1e1f20] rounded-full overflow-hidden">
+              <div className="h-24 flex items-center justify-center max-w-sm mx-auto text-center">
+                {isMobile ? (
                   <motion.div
-                    className="h-full bg-gradient-to-r from-[#446EFF] via-[#2E96FF] to-[#B1C5FF]"
-                    initial={{ width: 0 }}
-                    animate={{ width: `${Math.max(2, initProgress)}%` }}
-                    transition={{ type: 'spring', damping: 25, stiffness: 80 }}
-                  />
-                </div>
-                <div className="flex justify-between items-center text-[10px] text-[#5f6368] font-bold uppercase tracking-[0.2em]">
-                  <span className="animate-pulse">{initStatus}</span>
-                  <span className="text-primary">{initProgress}%</span>
-                </div>
+                    initial={{ opacity: 0, scale: 0.98, y: 5 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    transition={{ delay: 0.1, duration: 0.4, ease: "easeOut" }}
+                    className="bg-red-500/5 border border-red-500/20 rounded-2xl p-6 backdrop-blur-md mx-6"
+                  >
+                    <p className="text-red-200/80 text-sm leading-relaxed font-medium">
+                      {error}
+                    </p>
+                  </motion.div>
+                ) : (
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={loadingInfoIndex}
+                      initial={{ opacity: 0, y: 15 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -15 }}
+                      transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+                      className="space-y-2 px-6"
+                    >
+                      <p className="text-white text-[10px] font-bold uppercase tracking-[0.3em] opacity-40">{loadingInfos[loadingInfoIndex].title}</p>
+                      <p className="text-[#9aa0a6] text-[13px] leading-relaxed font-medium">{loadingInfos[loadingInfoIndex].desc}</p>
+                    </motion.div>
+                  </AnimatePresence>
+                )}
               </div>
+
+              {!isMobile && (
+                <div className="w-full max-w-[280px] space-y-4">
+                  <div className="h-[2px] w-full bg-[#1e1f20] rounded-full overflow-hidden">
+                    <motion.div
+                      className="h-full bg-gradient-to-r from-[#446EFF] via-[#2E96FF] to-[#B1C5FF]"
+                      initial={{ width: 0 }}
+                      animate={{ width: `${Math.max(2, initProgress)}%` }}
+                      transition={{ type: 'spring', damping: 25, stiffness: 80 }}
+                    />
+                  </div>
+                  <div className="flex justify-between items-center text-[10px] uppercase tracking-[0.2em] font-bold">
+                    <span className="animate-pulse text-[#5f6368]">
+                      {initStatus}
+                    </span>
+                    <span className="text-primary">{initProgress}%</span>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="absolute bottom-8 left-0 right-0 text-center flex flex-col gap-1">
@@ -712,8 +906,12 @@ export default function Home() {
           </motion.div>
         )}
       </AnimatePresence>
-      {/* Sidebar Backdrop for Mobile */}
-      <AnimatePresence>
+
+      {/* Main Application Layout */}
+      {!isMobile && mounted && (
+        <>
+          {/* Sidebar Backdrop for Mobile */}
+          <AnimatePresence>
         {isSidebarOpen && (
           <motion.div
             initial={{ opacity: 0 }}
@@ -978,60 +1176,15 @@ export default function Home() {
                 </motion.div>
               </motion.div>
             ) : (
-              activeChat?.messages.map((msg) => (
-                <div
+              activeChat?.messages.map((msg, idx) => (
+                <ChatMessage
                   key={msg.id}
-                  className={cn(
-                    "flex gap-4 md:gap-6",
-                    msg.role === 'user' ? "flex-row-reverse" : "flex-row"
-                  )}
-                >
-                  <div className={cn(
-                    "w-10 h-10 rounded-full flex items-center justify-center shrink-0",
-                    msg.role === 'user' ? "bg-primary" : "bg-[#1e1f20] border border-[#28292a]"
-                  )}>
-                    {msg.role === 'user' ? <MdOutlineAccountCircle size={28} /> : <GemmaIcon size={28} className="text-primary" />}
-                  </div>
-                  <div className={cn(
-                    "flex-1 min-w-0 space-y-2",
-                    msg.role === 'user' ? "flex flex-col items-end" : "flex flex-col items-start"
-                  )}>
-                    {msg.role === 'assistant' && msg.reasoning && (
-                      <ReasoningBlock 
-                        reasoning={msg.reasoning} 
-                        duration={msg.reasoningDuration} 
-                        isComplete={msg.isReasoningComplete} 
-                      />
-                    )}
-                    
-                    {(msg.role === 'user' || msg.content) && (
-                      <>
-                        <div className={cn(
-                          "block max-w-full p-4 rounded-2xl text-sm leading-relaxed min-w-0 shadow-sm transition-all duration-500",
-                          msg.role === 'user'
-                            ? "bg-[#28292a] text-white rounded-tr-none ml-4"
-                            : "bg-[#1e1f20] text-[#e3e3e3] border border-[#28292a] rounded-tl-none mr-4"
-                        )}>
-                          <div className="prose prose-invert max-w-full prose-p:leading-relaxed min-w-0">
-                            <ReactMarkdown
-                              remarkPlugins={[remarkGfm, remarkMath]}
-                              rehypePlugins={[
-                                [rehypeKatex, { strict: false, output: 'html', throwOnError: false }],
-                                rehypeHighlight,
-                                rehypeRaw
-                              ]}
-                            >
-                              {msg.content || (isLoading && msg.role === 'assistant' && !msg.reasoning ? "..." : "")}
-                            </ReactMarkdown>
-                          </div>
-                        </div>
-                        <div className="text-[10px] text-[#5f6368] px-1">
-                          {formatTime(msg.timestamp)}
-                        </div>
-                      </>
-                    )}
-                  </div>
-                </div>
+                  msg={msg}
+                  activeChatId={activeChatId}
+                  generatingChatId={generatingChatId}
+                  isLoading={isLoading}
+                  isLast={idx === activeChat.messages.length - 1}
+                />
               ))
             )}
             <div ref={messagesEndRef} />
@@ -1068,7 +1221,7 @@ export default function Home() {
                         className="w-1.5 h-1.5 bg-primary rounded-full"
                       />
                     </div>
-                    <span className="text-[11px] font-medium text-[#9aa0a6]">Gemma is thinking...</span>
+                    <span className="text-[11px] font-medium text-[#9aa0a6]">Gemma 4 is thinking...</span>
                   </div>
                 </motion.div>
               )}
@@ -1080,55 +1233,83 @@ export default function Home() {
                 <span>{error}</span>
               </div>
             )}
-            <div className="relative flex items-end bg-[#1e1f20] rounded-2xl border border-[#28292a] focus-within:border-[#3c4043] transition-all shadow-lg overflow-hidden pl-4">
-              <textarea
-                ref={textareaRef}
-                value={input}
-                onChange={(e) => updateInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSendMessage();
-                  }
-                }}
-                placeholder="Message Gemma 4..."
-                className="flex-1 bg-transparent py-4 resize-none focus:outline-none text-sm max-h-[132px] overflow-y-auto custom-scrollbar"
-                rows={1}
-              />
-              <div className="p-2 flex items-center gap-1">
-                <button
-                  onClick={() => setIsReasoningEnabled(!isReasoningEnabled)}
-                  className={cn(
-                    "p-2 rounded-xl transition-all duration-300 relative group",
-                    isReasoningEnabled 
-                      ? "text-primary bg-primary/10" 
-                      : "text-[#5f6368] hover:text-[#9aa0a6] hover:bg-[#28292a]"
-                  )}
-                  title={isReasoningEnabled ? "Deep Thinking Enabled" : "Enable Deep Thinking"}
-                >
-                  <MdOutlineLightbulb size={22} />
-                  {isReasoningEnabled && (
-                    <motion.div
-                      layoutId="input-glow"
-                      className="absolute inset-0 bg-primary/10 blur-md rounded-xl -z-10"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                    />
-                  )}
-                </button>
-                
-                <button
-                  onClick={handleSendMessage}
-                  disabled={!input.trim() || isLoading}
-                  className={cn(
-                    "p-2 rounded-xl transition-all shrink-0",
-                    input.trim() && !isLoading
-                      ? "bg-primary text-white"
-                      : "text-[#5f6368] cursor-not-allowed"
-                  )}
-                >
-                  {isLoading ? <MdOutlineRefresh size={22} className="animate-spin" /> : <MdSend size={22} />}
-                </button>
+            <div className="flex flex-col bg-[#1e1f20] rounded-2xl border border-[#28292a] focus-within:border-[#3c4043] transition-all shadow-lg overflow-hidden">
+              <div className="px-4 pt-2">
+                <textarea
+                  ref={textareaRef}
+                  value={input}
+                  onChange={(e) => updateInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSendMessage();
+                    }
+                  }}
+                  placeholder="Message Gemma 4..."
+                  maxLength={inputCharLimit}
+                  className="w-full bg-transparent py-4 resize-none focus:outline-none text-sm max-h-[160px] overflow-y-auto custom-scrollbar"
+                  rows={1}
+                />
+              </div>
+
+              <div className="flex items-center justify-between px-3 pb-3 pt-1">
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setIsReasoningEnabled(!isReasoningEnabled)}
+                    className={cn(
+                      "p-1.5 rounded-lg transition-all duration-300 relative group flex items-center gap-2",
+                      isReasoningEnabled
+                        ? "text-primary bg-primary/10 border border-primary/20"
+                        : "text-[#5f6368] hover:text-[#9aa0a6] hover:bg-[#28292a] border border-transparent"
+                    )}
+                  >
+                    <MdOutlineLightbulb size={18} />
+                    <span className="text-[12px] font-medium pr-1">
+                      {isReasoningEnabled ? "Thinking On" : "Thinking Off"}
+                    </span>
+                    {isReasoningEnabled && (
+                      <motion.div
+                        layoutId="input-glow"
+                        className="absolute inset-0 bg-primary/10 blur-sm rounded-lg -z-10"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                      />
+                    )}
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <AnimatePresence>
+                    {input.length > 3000 && (
+                      <motion.div
+                        initial={{ opacity: 0, x: 5 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: 5 }}
+                        className={cn(
+                          "text-[10px] font-bold tracking-tighter tabular-nums px-1.5 py-0.5 rounded-md border transition-colors",
+                          input.length >= inputCharLimit
+                            ? "bg-red-500/10 border-red-500/30 text-red-500"
+                            : "bg-zinc-800/50 border-zinc-700/50 text-[#5f6368]"
+                        )}
+                      >
+                        {input.length.toLocaleString()}/{inputCharLimit.toLocaleString()}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  <button
+                    onClick={handleSendMessage}
+                    disabled={!input.trim() || isLoading}
+                    className={cn(
+                      "p-2 rounded-xl transition-all shrink-0",
+                      input.trim() && !isLoading
+                        ? "bg-primary text-white shadow-lg shadow-primary/20"
+                        : "text-[#5f6368] cursor-not-allowed"
+                    )}
+                  >
+                    {isLoading ? <MdOutlineRefresh size={22} className="animate-spin" /> : <MdSend size={22} />}
+                  </button>
+                </div>
               </div>
             </div>
             <p className="mt-2 text-[10px] text-center text-[#5f6368] leading-relaxed max-w-lg mx-auto">
@@ -1137,9 +1318,11 @@ export default function Home() {
               Gemma may display inaccurate info, so double-check its responses.
               <span className="ml-1 font-medium text-primary/80">Running 100% on-device.</span>
             </p>
+            </div>
           </div>
-        </div>
-      </main>
+        </main>
+      </>
+    )}
     </div>
   );
 }

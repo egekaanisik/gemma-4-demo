@@ -39,6 +39,8 @@
 @layer base {
   .prose {
     @apply text-[#e3e3e3];
+    word-break: break-word;
+    overflow-wrap: break-word;
   }
 
   .prose p {

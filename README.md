@@ -19,13 +19,17 @@ This application was built using **Google AI Studio** and **Antigravity**. It is
 - **🔒 Privacy-First**: No servers, no tracking, and no data collection. Your conversations stay on your machine.
 - **📥 PWA & Offline Support**: Optimized with a Service Worker that uses a **Stale-While-Revalidate (SWR)** strategy for instant loads and automatic updates.
 - **⚡ High-Performance**: Leverages modern browser capabilities for low-latency reasoning on supported hardware.
-- **📱 Responsive UI**: A premium, dark-themed chat interface optimized for both desktop and mobile use.
+- **🧠 Reasoning Mode**: Support for Gemma 4's internal reasoning ("thinking") blocks with duration tracking and collapsible UI.
+- **📱 Responsive UI**: A premium, dark-themed chat interface optimized for desktop use.
 
 ---
 
 ## 📱 Mobile Compatibility & Constraints
 
-While this application is fully responsive, running high-performance models like **Gemma 4** on mobile devices comes with significant constraints:
+> [!WARNING]
+> **Mobile Devices Not Supported**: Running high-performance models like **Gemma 4** on mobile devices is currently not supported due to significant hardware constraints and browser memory limits.
+
+While the UI is responsive, you will encounter the following limitations on mobile:
 
 - **WebGPU Support**: While WebGPU is now supported by default in most modern mobile browsers, availability remains dependent on specific hardware capabilities and OS versions. On some setups, you may still need to verify compatibility or enable technical flags for high-performance inference.
 - **Memory (RAM) Limits**: Gemma 4 is a relatively large model. Even on high-end hardware, mobile browsers have strict per-tab memory ceilings. Exceeding these during the download or initialization phase may trigger system-level safety mechanisms.

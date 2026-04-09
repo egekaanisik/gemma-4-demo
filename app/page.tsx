@@ -813,24 +813,24 @@ export default function Home() {
                 className="absolute -inset-16 bg-primary/20 blur-3xl rounded-full"
               />
               <div className="relative">
-                <div className="w-28 h-28 border-b-2 border-primary/20 border-t-2 border-primary rounded-full animate-spin duration-[2000ms]" />
+                <div className="w-32 h-32 border-b-2 border-primary/20 border-t-2 border-primary rounded-full animate-spin duration-[2000ms]" />
                 <div className="absolute inset-0 flex items-center justify-center">
                   <motion.div
                     animate={{ scale: [0.95, 1.05, 0.95] }}
                     transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
                   >
-                    <GemmaIcon size={64} className="text-primary" />
+                    <GemmaIcon size={72} className="text-primary" />
                   </motion.div>
                 </div>
               </div>
             </div>
 
-            <div className="w-full max-w-lg flex flex-col items-center space-y-12 z-10">
+            <div className="w-full max-w-lg flex flex-col items-center space-y-16 z-10">
               <div className="text-center space-y-4 px-6">
                 <motion.h2
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="text-4xl md:text-5xl font-medium tracking-tight text-white"
+                  className="text-4xl md:text-6xl font-medium tracking-tight text-white"
                 >
                   Gemma 4
                 </motion.h2>
@@ -1073,7 +1073,7 @@ export default function Home() {
           (!activeChat || !activeChat.messages || activeChat.messages.length === 0) && "flex flex-col"
         )}>
           <div className={cn(
-            "max-w-3xl mx-auto space-y-8 w-full",
+            "max-w-4xl mx-auto space-y-8 w-full px-6",
             (!activeChat || !activeChat.messages || activeChat.messages.length === 0) && "my-auto py-6"
           )}>
             {!isInitializing && (!activeChat || !activeChat.messages || activeChat.messages.length === 0) ? (
@@ -1081,52 +1081,54 @@ export default function Home() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.8, ease: "easeOut" }}
-                className="flex flex-col items-center justify-center text-center space-y-9"
+                className="flex flex-col items-center justify-center text-center space-y-9 px-0 md:px-6"
               >
-                <div className="relative group">
-                  <motion.div
-                    animate={{
-                      scale: [1, 1.15, 1],
-                      opacity: [0.3, 0.6, 0.3],
-                    }}
-                    transition={{
-                      duration: 4,
-                      repeat: Infinity,
-                      ease: "easeInOut"
-                    }}
-                    className="absolute -inset-4 bg-primary/20 blur-2xl rounded-full"
-                  />
-                  <div className="relative w-28 h-28 bg-[#1e1f20]/80 backdrop-blur-xl rounded-full flex items-center justify-center text-primary shadow-2xl border border-[#28292a] group-hover:border-primary/50 transition-colors duration-500">
-                    <GemmaIcon size={84} />
+                <div className="flex flex-col md:flex-row items-center gap-10 md:gap-16 text-center md:text-left max-w-6xl px-0 md:px-6">
+                  <div className="relative group shrink-0">
+                    <motion.div
+                      animate={{
+                        scale: [1, 1.15, 1],
+                        opacity: [0.3, 0.6, 0.3],
+                      }}
+                      transition={{
+                        duration: 4,
+                        repeat: Infinity,
+                        ease: "easeInOut"
+                      }}
+                      className="absolute -inset-6 bg-primary/20 blur-3xl rounded-full"
+                    />
+                    <div className="relative w-32 h-32 bg-[#1e1f20]/80 backdrop-blur-xl rounded-full flex items-center justify-center text-primary shadow-2xl border border-[#28292a] group-hover:border-primary/50 transition-colors duration-500">
+                      <GemmaIcon size={96} />
+                    </div>
                   </div>
-                </div>
 
-                <div className="space-y-3 max-w-2xl px-4">
-                  <motion.h2
-                    initial={{ opacity: 0, filter: "blur(10px)" }}
-                    animate={{ opacity: 1, filter: "blur(0px)" }}
-                    transition={{ delay: 0.2, duration: 0.8 }}
-                    className="text-4xl md:text-5xl font-medium text-white tracking-tight"
-                  >
-                    Hello! I&apos;m <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-[#B1C5FF]">Gemma 4</span>.
-                  </motion.h2>
-                  <motion.p
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.4, duration: 0.8 }}
-                    className="text-[#9aa0a6] text-lg leading-relaxed"
-                  >
-                    I run entirely in your browser. No data ever leaves your device.
-                    <br />
-                    <span className="text-white">How can I help you today?</span>
-                  </motion.p>
+                  <div className="space-y-3">
+                    <motion.h2
+                      initial={{ opacity: 0, filter: "blur(10px)" }}
+                      animate={{ opacity: 1, filter: "blur(0px)" }}
+                      transition={{ delay: 0.2, duration: 0.8 }}
+                      className="text-4xl md:text-5xl font-medium text-white tracking-tight"
+                    >
+                      Hello! I&apos;m <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-[#B1C5FF]">Gemma 4</span>.
+                    </motion.h2>
+                    <motion.p
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: 0.4, duration: 0.8 }}
+                      className="text-[#9aa0a6] text-base md:text-lg leading-relaxed"
+                    >
+                      I run entirely in your browser. No data ever leaves your device.
+                      <br />
+                      <span className="text-white">How can I help you today?</span>
+                    </motion.p>
+                  </div>
                 </div>
 
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.6, duration: 0.8 }}
-                  className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full max-w-2xl pt-2"
+                  className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full max-w-3xl pt-2"
                 >
                   {[
                     {
@@ -1155,7 +1157,7 @@ export default function Home() {
                       whileHover={{ scale: 1.02, backgroundColor: "rgba(40, 41, 42, 0.8)" }}
                       whileTap={{ scale: 0.98 }}
                       onClick={() => updateInput(suggestion.text)}
-                      className="group p-3.5 bg-[#1e1f20]/50 backdrop-blur-md rounded-2xl text-left transition-all border border-[#28292a] hover:border-[#3c4043] flex flex-col gap-2 relative overflow-hidden"
+                      className="group p-4 bg-[#1e1f20]/50 backdrop-blur-md rounded-2xl text-left transition-all border border-[#28292a] hover:border-[#3c4043] flex flex-col gap-2 relative overflow-hidden"
                     >
                       <div className="flex items-center justify-between">
                         <div className="p-1.5 bg-[#131314] rounded-lg border border-[#28292a] group-hover:border-primary/30 transition-colors">
@@ -1193,7 +1195,7 @@ export default function Home() {
 
         {/* Input Area */}
         <div className="p-4 md:p-5 bg-gradient-to-t from-[#131314] via-[#131314] to-transparent">
-          <div className="max-w-3xl mx-auto relative">
+          <div className="max-w-4xl mx-auto relative">
             <AnimatePresence>
               {isLoading && (
                 <motion.div

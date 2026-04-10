@@ -211,14 +211,14 @@ const ReasoningBlock = ({ reasoning, duration, isComplete }: { reasoning?: strin
 };
 
 // Message item component for better performance and hook support
-const ChatMessage = ({ 
-  msg, 
-  activeChatId, 
-  generatingChatId, 
-  isLoading, 
-  isLast 
-}: { 
-  msg: Message; 
+const ChatMessage = ({
+  msg,
+  activeChatId,
+  generatingChatId,
+  isLoading,
+  isLast
+}: {
+  msg: Message;
   activeChatId?: string | null;
   generatingChatId?: string | null;
   isLoading: boolean;
@@ -237,8 +237,8 @@ const ChatMessage = ({
           </pre>
           {!isGeneratingCurrent && (
             <div className="absolute top-3 right-3 opacity-0 group-hover/code:opacity-100 transition-opacity">
-              <CopyButton 
-                text={codeContent} 
+              <CopyButton
+                text={codeContent}
                 className="bg-black/60 hover:bg-black/80 text-zinc-400 hover:text-white px-2 py-1 rounded-md border border-white/10 backdrop-blur-md shadow-lg"
               />
             </div>
@@ -264,13 +264,13 @@ const ChatMessage = ({
         msg.role === 'user' ? "flex flex-col items-end" : "flex flex-col items-start"
       )}>
         {msg.role === 'assistant' && msg.reasoning && (
-          <ReasoningBlock 
-            reasoning={msg.reasoning} 
-            duration={msg.reasoningDuration} 
-            isComplete={msg.isReasoningComplete} 
+          <ReasoningBlock
+            reasoning={msg.reasoning}
+            duration={msg.reasoningDuration}
+            isComplete={msg.isReasoningComplete}
           />
         )}
-        
+
         {(msg.role === 'user' || msg.content) && (
           <>
             <div className={cn(
@@ -298,8 +298,8 @@ const ChatMessage = ({
                 {msg.timestamp ? formatTime(msg.timestamp) : ''}
               </div>
               {msg.role === 'assistant' && !isGeneratingCurrent && msg.content && (
-                <CopyButton 
-                  text={msg.content} 
+                <CopyButton
+                  text={msg.content}
                   className="text-[#5f6368] hover:text-primary p-0 bg-transparent border-none"
                   iconSize={14}
                 />
@@ -519,27 +519,50 @@ export default function Home() {
   };
 
   const generateChatTitle = async (chatId: string, firstMessage: string) => {
+    // Basic fallback title from the first message
+    const getFallbackTitle = (msg: string) => {
+      const trimmed = msg.trim();
+      if (trimmed.length <= 40) return trimmed;
+      // Try to cut at the last space within 40 chars
+      const lastSpace = trimmed.substring(0, 40).lastIndexOf(' ');
+      if (lastSpace > 20) return trimmed.substring(0, lastSpace) + '...';
+      return trimmed.substring(0, 40) + '...';
+    };
+
     try {
-      // Prompting for a descriptive noun phrase summarizing the intent using Gemma 4 formatting
-      const titlePrompt = `<|turn>system You are a professional summarizer that transforms user messages into high-quality, brief titles that describes the user's intent (max 5 words). You MUST respond in the same language as the user's input. For example: If the input is in Turkish, the title must be in Turkish. If you are not sure about the input language, use English as default. Respond ONLY with the title text itself in Title Case (where applicable). Do not use quotes or periods.<turn|>\n<|turn>user ${firstMessage}<turn|>\n<|turn>model `;
+      // Prompt emphasizing the user's intent with conversation fingerprint for context consistency
+      const titlePrompt = `<|turn>system You are a professional summarizer. Your goal is to capture the USER'S INTENT and summarize their message into a SINGLE brief title (max 5 words). (Conversation Fingerprint: ${chatId || Date.now()})
+RULES:
+1. Respond ONLY with the title text itself.
+2. NO numbering (e.g., do NOT start with "1." or "1 ").
+3. NO bullet points or prefixes.
+4. NO quotes or periods.
+5. NO mentioning or including the "Conversation Fingerprint".
+6. Use Title Case.
+7. Use the SAME language as the user input (e.g., if user writes in Turkish, title must be Turkish). Use English as a fallback if you're unsure.
+8. NO emojis.<turn|>\n<|turn>user ${firstMessage}<turn|>\n<|turn>model `;
 
       const generatedTitle = await LLMService.generateResponse(MODEL_URL, titlePrompt);
 
-      // Clean up the title (sometimes models add reasoning blocks, add quotes, prefixes like "Title:", or extra text)
-      let cleanTitle = generatedTitle.trim()
-        .replace(/<\|channel>[\s\S]*?<channel\|>/g, '')
+      // Clean up the title more robustly
+      let cleanTitle = generatedTitle
+        .replace(/<\|channel>[\s\S]*?<channel\|>/g, '') // Remove reasoning blocks
+        .trim() // Trim after removing reasoning to handle leading spaces
+        .replace(/^\d+[\s.)-]+\s*/, '') // Strip leading numbers like "1.", "1)", "1 - "
         .replace(/^Title:\s*/i, '')
         .replace(/^["']|["']$/g, '')
         .split('\n')[0]
         .trim();
 
-      if (cleanTitle) {
-        setChats(prev => prev.map(c =>
-          c.id === chatId ? { ...c, title: cleanTitle } : c
-        ));
-      }
+      setChats(prev => prev.map(c =>
+        c.id === chatId ? { ...c, title: cleanTitle || getFallbackTitle(firstMessage) } : c
+      ));
     } catch (err) {
       console.error("Failed to generate title:", err);
+      // Even on error, set a fallback so it doesn't stay as "..."
+      setChats(prev => prev.map(c =>
+        c.id === chatId ? { ...c, title: getFallbackTitle(firstMessage) } : c
+      ));
     }
   };
 
@@ -912,419 +935,419 @@ export default function Home() {
         <>
           {/* Sidebar Backdrop for Mobile */}
           <AnimatePresence>
-        {isSidebarOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setIsSidebarOpen(false)}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden"
-          />
-        )}
-      </AnimatePresence>
+            {isSidebarOpen && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setIsSidebarOpen(false)}
+                className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden"
+              />
+            )}
+          </AnimatePresence>
 
-      {/* Sidebar */}
-      <motion.aside
-        initial={false}
-        animate={{
-          x: isSidebarOpen ? 0 : -280,
-          width: isSidebarOpen ? 280 : (windowWidth >= 768 ? 0 : 280)
-        }}
-        transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-        className={cn(
-          "bg-[#1e1f20] flex flex-col h-full z-50 border-r border-[#28292a] fixed md:relative inset-y-0 left-0 overflow-hidden",
-          !isSidebarOpen && "pointer-events-none md:pointer-events-auto"
-        )}
-      >
-        <div className="w-[280px] h-full flex flex-col">
-          <div className="p-4 flex items-center gap-2">
-            <button
-              onClick={createNewChat}
-              className="flex items-center gap-3 px-4 py-3 bg-[#28292a] hover:bg-[#333537] rounded-xl transition-colors flex-1 text-sm font-medium"
-            >
-              <MdOutlineAdd size={24} />
-              <span>New Chat</span>
-            </button>
-            <button
-              onClick={() => setIsSidebarOpen(false)}
-              className="p-3 hover:bg-[#28292a] rounded-xl transition-colors"
-            >
-              <MdOutlineClose size={24} />
-            </button>
-          </div>
-
-          <div className="flex-1 overflow-y-auto px-2 space-y-1">
-            <div className="px-4 py-2 text-xs font-semibold text-[#9aa0a6] uppercase tracking-wider">
-              Recent
-            </div>
-            {mounted && sortedChats.map(chat => (
-              <div
-                key={chat.id}
-                onClick={() => {
-                  setActiveChatId(chat.id);
-                  if (window.innerWidth < 768) setIsSidebarOpen(false);
-                }}
-                className={cn(
-                  "group flex items-center gap-3 px-4 py-2.5 rounded-lg cursor-pointer transition-colors text-sm",
-                  activeChatId === chat.id ? "bg-[#28292a] text-white" : "hover:bg-[#28292a] text-[#e3e3e3]"
-                )}
-              >
-                <MdChatBubbleOutline size={20} className="shrink-0" />
-                <div className="flex flex-col flex-1 min-w-0">
-                  <span className="truncate">{chat.title}</span>
-                  <span className="text-[10px] text-[#5f6368]">{formatRelativeTime(chat.updatedAt)}</span>
-                </div>
+          {/* Sidebar */}
+          <motion.aside
+            initial={false}
+            animate={{
+              x: isSidebarOpen ? 0 : -280,
+              width: isSidebarOpen ? 280 : (windowWidth >= 768 ? 0 : 280)
+            }}
+            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+            className={cn(
+              "bg-[#1e1f20] flex flex-col h-full z-50 border-r border-[#28292a] fixed md:relative inset-y-0 left-0 overflow-hidden",
+              !isSidebarOpen && "pointer-events-none md:pointer-events-auto"
+            )}
+          >
+            <div className="w-[280px] h-full flex flex-col">
+              <div className="p-4 flex items-center gap-2">
                 <button
-                  onClick={(e) => deleteChat(chat.id, e)}
-                  disabled={chat.id === generatingChatId}
-                  className={cn(
-                    "opacity-100 md:opacity-0 md:group-hover:opacity-100 p-1 transition-all",
-                    chat.id === generatingChatId ? "cursor-not-allowed text-[#3c4043]" : "hover:text-red-400"
-                  )}
+                  onClick={createNewChat}
+                  className="flex items-center gap-3 px-4 py-3 bg-[#28292a] hover:bg-[#333537] rounded-xl transition-colors flex-1 text-sm font-medium"
                 >
-                  <MdDeleteOutline size={18} />
+                  <MdOutlineAdd size={24} />
+                  <span>New Chat</span>
+                </button>
+                <button
+                  onClick={() => setIsSidebarOpen(false)}
+                  className="p-3 hover:bg-[#28292a] rounded-xl transition-colors"
+                >
+                  <MdOutlineClose size={24} />
                 </button>
               </div>
-            ))}
-          </div>
 
-          <div className="p-4 border-t border-[#28292a] space-y-2">
-            <button
-              onClick={deleteAllChats}
-              disabled={isLoading}
-              className={cn(
-                "flex items-center gap-3 px-4 py-2 rounded-xl transition-colors w-full text-sm",
-                isLoading
-                  ? "cursor-not-allowed text-[#3c4043] bg-transparent"
-                  : "hover:bg-red-400/10 text-[#9aa0a6] hover:text-red-400"
-              )}
-            >
-              <MdOutlineDeleteForever size={20} />
-              <span>Clear all chats</span>
-            </button>
-
-            <div className="px-4 py-2 flex flex-col gap-1">
-              <div className="text-[10px] text-[#5f6368] font-medium">
-                Demo not affiliated with Google.
-              </div>
-              <div className="text-[10px] text-[#5f6368] font-medium">
-                Made by <a href="https://egekaan.dev" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Ege Kaan Işık</a>
-              </div>
-            </div>
-          </div>
-        </div>
-      </motion.aside>
-
-      {/* Main Content */}
-      <main className="flex-1 flex flex-col relative min-w-0">
-        {/* Header */}
-        <header className={cn(
-          "h-16 flex items-center px-4 md:px-6 relative shrink-0 transition-colors duration-300",
-          activeChat && activeChat.messages && activeChat.messages.length > 0 ? "border-b border-[#28292a]" : "border-b border-transparent"
-        )}>
-          <div className="flex items-center z-10 min-w-0">
-            <div className={cn(
-              "flex items-center transition-all duration-300 overflow-hidden",
-              isSidebarOpen ? "w-0 opacity-0" : "w-11 opacity-100 mr-2"
-            )}>
-              <button
-                onClick={() => setIsSidebarOpen(true)}
-                className="p-2 hover:bg-[#28292a] rounded-lg shrink-0"
-              >
-                <MdOutlineMenu size={24} />
-              </button>
-            </div>
-            {activeChat && activeChat.messages && activeChat.messages.length > 0 && (
-              <h1 className="hidden md:block text-sm md:text-base font-semibold text-[#e3e3e3] truncate whitespace-nowrap">
-                Gemma 4 Demo
-              </h1>
-            )}
-          </div>
-
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none transition-opacity duration-300">
-            {activeChat && activeChat.messages && activeChat.messages.length > 0 && (
-              <h2 className="text-sm md:text-base font-medium text-[#9aa0a6] truncate px-32 md:px-48 animate-in fade-in slide-in-from-top-1 duration-500">
-                {activeChat.title}
-              </h2>
-            )}
-          </div>
-
-          <div className="ml-auto z-10 flex items-center gap-2">
-            {activeChat && activeChat.messages && activeChat.messages.length > 0 && (
-              <button
-                onClick={(e) => deleteChat(activeChat.id, e)}
-                disabled={activeChat.id === generatingChatId || isInitializing}
-                className={cn(
-                  "p-2 hover:bg-red-400/10 text-[#9aa0a6] hover:text-red-400 rounded-lg transition-all",
-                  (activeChat.id === generatingChatId || isInitializing)
-                    ? "opacity-40 cursor-not-allowed text-zinc-500 grayscale"
-                    : "opacity-100"
-                )}
-              >
-                <MdDeleteOutline size={24} />
-              </button>
-            )}
-          </div>
-        </header>
-
-        {/* Chat Area */}
-        <div className={cn(
-          "flex-1 overflow-y-auto px-4 py-8 md:px-0 scroll-smooth",
-          (!activeChat || !activeChat.messages || activeChat.messages.length === 0) && "flex flex-col"
-        )}>
-          <div className={cn(
-            "max-w-4xl mx-auto space-y-8 w-full px-6",
-            (!activeChat || !activeChat.messages || activeChat.messages.length === 0) && "my-auto py-6"
-          )}>
-            {!isInitializing && (!activeChat || !activeChat.messages || activeChat.messages.length === 0) ? (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8, ease: "easeOut" }}
-                className="flex flex-col items-center justify-center text-center space-y-9 px-0 md:px-6"
-              >
-                <div className="flex flex-col md:flex-row items-center gap-10 md:gap-16 text-center md:text-left max-w-6xl px-0 md:px-6">
-                  <div className="relative group shrink-0">
-                    <motion.div
-                      animate={{
-                        scale: [1, 1.15, 1],
-                        opacity: [0.3, 0.6, 0.3],
-                      }}
-                      transition={{
-                        duration: 4,
-                        repeat: Infinity,
-                        ease: "easeInOut"
-                      }}
-                      className="absolute -inset-6 bg-primary/20 blur-3xl rounded-full"
-                    />
-                    <div className="relative w-32 h-32 bg-[#1e1f20]/80 backdrop-blur-xl rounded-full flex items-center justify-center text-primary shadow-2xl border border-[#28292a] group-hover:border-primary/50 transition-colors duration-500">
-                      <GemmaIcon size={96} />
-                    </div>
-                  </div>
-
-                  <div className="space-y-3">
-                    <motion.h2
-                      initial={{ opacity: 0, filter: "blur(10px)" }}
-                      animate={{ opacity: 1, filter: "blur(0px)" }}
-                      transition={{ delay: 0.2, duration: 0.8 }}
-                      className="text-4xl md:text-5xl font-medium text-white tracking-tight"
-                    >
-                      Hello! I&apos;m <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-[#B1C5FF]">Gemma 4</span>.
-                    </motion.h2>
-                    <motion.p
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ delay: 0.4, duration: 0.8 }}
-                      className="text-[#9aa0a6] text-base md:text-lg leading-relaxed"
-                    >
-                      I run entirely in your browser. No data ever leaves your device.
-                      <br />
-                      <span className="text-white">How can I help you today?</span>
-                    </motion.p>
-                  </div>
+              <div className="flex-1 overflow-y-auto px-2 space-y-1">
+                <div className="px-4 py-2 text-xs font-semibold text-[#9aa0a6] uppercase tracking-wider">
+                  Recent
                 </div>
-
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.6, duration: 0.8 }}
-                  className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full max-w-3xl pt-2"
-                >
-                  {[
-                    {
-                      text: "Explain quantum computing",
-                      icon: <MdOutlineScience size={18} className="text-orange-400" />,
-                      label: "Knowledge"
-                    },
-                    {
-                      text: "Write a poem about space",
-                      icon: <MdOutlineHistoryEdu size={18} className="text-purple-400" />,
-                      label: "Creative"
-                    },
-                    {
-                      text: "Write a React hook for fetch",
-                      icon: <MdOutlineCode size={18} className="text-blue-400" />,
-                      label: "Code"
-                    },
-                    {
-                      text: "Analyze this idea: Local-first AI",
-                      icon: <MdOutlineLightbulb size={18} className="text-yellow-400" />,
-                      label: "Strategy"
-                    }
-                  ].map((suggestion, index) => (
-                    <motion.button
-                      key={suggestion.text}
-                      whileHover={{ scale: 1.02, backgroundColor: "rgba(40, 41, 42, 0.8)" }}
-                      whileTap={{ scale: 0.98 }}
-                      onClick={() => updateInput(suggestion.text)}
-                      className="group p-4 bg-[#1e1f20]/50 backdrop-blur-md rounded-2xl text-left transition-all border border-[#28292a] hover:border-[#3c4043] flex flex-col gap-2 relative overflow-hidden"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="p-1.5 bg-[#131314] rounded-lg border border-[#28292a] group-hover:border-primary/30 transition-colors">
-                          {suggestion.icon}
-                        </div>
-                        <span className="text-[9px] uppercase tracking-widest text-[#5f6368] font-bold group-hover:text-primary transition-colors">
-                          {suggestion.label}
-                        </span>
-                      </div>
-                      <span className="text-[13px] font-medium text-[#e3e3e3] group-hover:text-white transition-colors">
-                        {suggestion.text}
-                      </span>
-                      <div className="absolute top-0 right-0 p-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <MdOutlineAutoAwesome size={12} className="text-primary/50" />
-                      </div>
-                    </motion.button>
-                  ))}
-                </motion.div>
-              </motion.div>
-            ) : (
-              activeChat?.messages.map((msg, idx) => (
-                <ChatMessage
-                  key={msg.id}
-                  msg={msg}
-                  activeChatId={activeChatId}
-                  generatingChatId={generatingChatId}
-                  isLoading={isLoading}
-                  isLast={idx === activeChat.messages.length - 1}
-                />
-              ))
-            )}
-            <div ref={messagesEndRef} />
-          </div>
-        </div>
-
-        {/* Input Area */}
-        <div className="p-4 md:p-5 bg-gradient-to-t from-[#131314] via-[#131314] to-transparent">
-          <div className="max-w-4xl mx-auto relative">
-            <AnimatePresence>
-              {isLoading && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 5, scale: 0.95 }}
-                  transition={{ duration: 0.2 }}
-                  className="absolute bottom-full left-0 mb-4 z-10"
-                >
-                  <div className="flex items-center gap-3 px-4 py-2 bg-[#1e1f20]/80 backdrop-blur-md border border-[#28292a] rounded-2xl shadow-xl">
-                    <div className="flex gap-1.5">
-                      <motion.div
-                        animate={{ opacity: [0.4, 1, 0.4] }}
-                        transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
-                        className="w-1.5 h-1.5 bg-primary rounded-full"
-                      />
-                      <motion.div
-                        animate={{ opacity: [0.4, 1, 0.4] }}
-                        transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut", delay: 0.2 }}
-                        className="w-1.5 h-1.5 bg-primary rounded-full"
-                      />
-                      <motion.div
-                        animate={{ opacity: [0.4, 1, 0.4] }}
-                        transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut", delay: 0.4 }}
-                        className="w-1.5 h-1.5 bg-primary rounded-full"
-                      />
-                    </div>
-                    <span className="text-[11px] font-medium text-[#9aa0a6]">Gemma 4 is thinking...</span>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            {error && (
-              <div className="absolute bottom-full left-0 right-0 mb-4 p-3 bg-red-900/20 border border-red-900/50 text-red-400 text-xs rounded-lg flex items-center gap-2 z-20">
-                <MdOutlineClose size={16} className="shrink-0" />
-                <span>{error}</span>
-              </div>
-            )}
-            <div className="flex flex-col bg-[#1e1f20] rounded-2xl border border-[#28292a] focus-within:border-[#3c4043] transition-all shadow-lg overflow-hidden">
-              <div className="px-4 pt-2">
-                <textarea
-                  ref={textareaRef}
-                  value={input}
-                  onChange={(e) => updateInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      handleSendMessage();
-                    }
-                  }}
-                  placeholder="Message Gemma 4..."
-                  maxLength={inputCharLimit}
-                  className="w-full bg-transparent py-4 resize-none focus:outline-none text-sm max-h-[160px] overflow-y-auto custom-scrollbar"
-                  rows={1}
-                />
-              </div>
-
-              <div className="flex items-center justify-between px-3 pb-3 pt-1">
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setIsReasoningEnabled(!isReasoningEnabled)}
+                {mounted && sortedChats.map(chat => (
+                  <div
+                    key={chat.id}
+                    onClick={() => {
+                      setActiveChatId(chat.id);
+                      if (window.innerWidth < 768) setIsSidebarOpen(false);
+                    }}
                     className={cn(
-                      "p-1.5 rounded-lg transition-all duration-300 relative group flex items-center gap-2",
-                      isReasoningEnabled
-                        ? "text-primary bg-primary/10 border border-primary/20"
-                        : "text-[#5f6368] hover:text-[#9aa0a6] hover:bg-[#28292a] border border-transparent"
+                      "group flex items-center gap-3 px-4 py-2.5 rounded-lg cursor-pointer transition-colors text-sm",
+                      activeChatId === chat.id ? "bg-[#28292a] text-white" : "hover:bg-[#28292a] text-[#e3e3e3]"
                     )}
                   >
-                    <MdOutlineLightbulb size={18} />
-                    <span className="text-[12px] font-medium pr-1">
-                      {isReasoningEnabled ? "Thinking On" : "Thinking Off"}
-                    </span>
-                    {isReasoningEnabled && (
-                      <motion.div
-                        layoutId="input-glow"
-                        className="absolute inset-0 bg-primary/10 blur-sm rounded-lg -z-10"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                      />
-                    )}
+                    <MdChatBubbleOutline size={20} className="shrink-0" />
+                    <div className="flex flex-col flex-1 min-w-0">
+                      <span className="truncate">{chat.title}</span>
+                      <span className="text-[10px] text-[#5f6368]">{formatRelativeTime(chat.updatedAt)}</span>
+                    </div>
+                    <button
+                      onClick={(e) => deleteChat(chat.id, e)}
+                      disabled={chat.id === generatingChatId}
+                      className={cn(
+                        "opacity-100 md:opacity-0 md:group-hover:opacity-100 p-1 transition-all",
+                        chat.id === generatingChatId ? "cursor-not-allowed text-[#3c4043]" : "hover:text-red-400"
+                      )}
+                    >
+                      <MdDeleteOutline size={18} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              <div className="p-4 border-t border-[#28292a] space-y-2">
+                <button
+                  onClick={deleteAllChats}
+                  disabled={isLoading}
+                  className={cn(
+                    "flex items-center gap-3 px-4 py-2 rounded-xl transition-colors w-full text-sm",
+                    isLoading
+                      ? "cursor-not-allowed text-[#3c4043] bg-transparent"
+                      : "hover:bg-red-400/10 text-[#9aa0a6] hover:text-red-400"
+                  )}
+                >
+                  <MdOutlineDeleteForever size={20} />
+                  <span>Clear all chats</span>
+                </button>
+
+                <div className="px-4 py-2 flex flex-col gap-1">
+                  <div className="text-[10px] text-[#5f6368] font-medium">
+                    Demo not affiliated with Google.
+                  </div>
+                  <div className="text-[10px] text-[#5f6368] font-medium">
+                    Made by <a href="https://egekaan.dev" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Ege Kaan Işık</a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </motion.aside>
+
+          {/* Main Content */}
+          <main className="flex-1 flex flex-col relative min-w-0">
+            {/* Header */}
+            <header className={cn(
+              "h-16 flex items-center px-4 md:px-6 relative shrink-0 transition-colors duration-300",
+              activeChat && activeChat.messages && activeChat.messages.length > 0 ? "border-b border-[#28292a]" : "border-b border-transparent"
+            )}>
+              <div className="flex items-center z-10 min-w-0">
+                <div className={cn(
+                  "flex items-center transition-all duration-300 overflow-hidden",
+                  isSidebarOpen ? "w-0 opacity-0" : "w-11 opacity-100 mr-2"
+                )}>
+                  <button
+                    onClick={() => setIsSidebarOpen(true)}
+                    className="p-2 hover:bg-[#28292a] rounded-lg shrink-0"
+                  >
+                    <MdOutlineMenu size={24} />
                   </button>
                 </div>
+                {activeChat && activeChat.messages && activeChat.messages.length > 0 && (
+                  <h1 className="hidden md:block text-sm md:text-base font-semibold text-[#e3e3e3] truncate whitespace-nowrap">
+                    Gemma 4 Demo
+                  </h1>
+                )}
+              </div>
 
-                <div className="flex items-center gap-3">
-                  <AnimatePresence>
-                    {input.length > 3000 && (
-                      <motion.div
-                        initial={{ opacity: 0, x: 5 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: 5 }}
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none transition-opacity duration-300">
+                {activeChat && activeChat.messages && activeChat.messages.length > 0 && (
+                  <h2 className="text-sm md:text-base font-medium text-[#9aa0a6] truncate px-32 md:px-48 animate-in fade-in slide-in-from-top-1 duration-500">
+                    {activeChat.title}
+                  </h2>
+                )}
+              </div>
+
+              <div className="ml-auto z-10 flex items-center gap-2">
+                {activeChat && activeChat.messages && activeChat.messages.length > 0 && (
+                  <button
+                    onClick={(e) => deleteChat(activeChat.id, e)}
+                    disabled={activeChat.id === generatingChatId || isInitializing}
+                    className={cn(
+                      "p-2 hover:bg-red-400/10 text-[#9aa0a6] hover:text-red-400 rounded-lg transition-all",
+                      (activeChat.id === generatingChatId || isInitializing)
+                        ? "opacity-40 cursor-not-allowed text-zinc-500 grayscale"
+                        : "opacity-100"
+                    )}
+                  >
+                    <MdDeleteOutline size={24} />
+                  </button>
+                )}
+              </div>
+            </header>
+
+            {/* Chat Area */}
+            <div className={cn(
+              "flex-1 overflow-y-auto px-4 py-8 md:px-0 scroll-smooth",
+              (!activeChat || !activeChat.messages || activeChat.messages.length === 0) && "flex flex-col"
+            )}>
+              <div className={cn(
+                "max-w-4xl mx-auto space-y-8 w-full px-6",
+                (!activeChat || !activeChat.messages || activeChat.messages.length === 0) && "my-auto py-6"
+              )}>
+                {!isInitializing && (!activeChat || !activeChat.messages || activeChat.messages.length === 0) ? (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.8, ease: "easeOut" }}
+                    className="flex flex-col items-center justify-center text-center space-y-9 px-0 md:px-6"
+                  >
+                    <div className="flex flex-col md:flex-row items-center gap-10 md:gap-16 text-center md:text-left max-w-6xl px-0 md:px-6">
+                      <div className="relative group shrink-0">
+                        <motion.div
+                          animate={{
+                            scale: [1, 1.15, 1],
+                            opacity: [0.3, 0.6, 0.3],
+                          }}
+                          transition={{
+                            duration: 4,
+                            repeat: Infinity,
+                            ease: "easeInOut"
+                          }}
+                          className="absolute -inset-6 bg-primary/20 blur-3xl rounded-full"
+                        />
+                        <div className="relative w-32 h-32 bg-[#1e1f20]/80 backdrop-blur-xl rounded-full flex items-center justify-center text-primary shadow-2xl border border-[#28292a] group-hover:border-primary/50 transition-colors duration-500">
+                          <GemmaIcon size={96} />
+                        </div>
+                      </div>
+
+                      <div className="space-y-3">
+                        <motion.h2
+                          initial={{ opacity: 0, filter: "blur(10px)" }}
+                          animate={{ opacity: 1, filter: "blur(0px)" }}
+                          transition={{ delay: 0.2, duration: 0.8 }}
+                          className="text-4xl md:text-5xl font-medium text-white tracking-tight"
+                        >
+                          Hello! I&apos;m <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-[#B1C5FF]">Gemma 4</span>.
+                        </motion.h2>
+                        <motion.p
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          transition={{ delay: 0.4, duration: 0.8 }}
+                          className="text-[#9aa0a6] text-base md:text-lg leading-relaxed"
+                        >
+                          I run entirely in your browser. No data ever leaves your device.
+                          <br />
+                          <span className="text-white">How can I help you today?</span>
+                        </motion.p>
+                      </div>
+                    </div>
+
+                    <motion.div
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.6, duration: 0.8 }}
+                      className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full max-w-3xl pt-2"
+                    >
+                      {[
+                        {
+                          text: "Explain quantum computing",
+                          icon: <MdOutlineScience size={18} className="text-orange-400" />,
+                          label: "Knowledge"
+                        },
+                        {
+                          text: "Write a poem about space",
+                          icon: <MdOutlineHistoryEdu size={18} className="text-purple-400" />,
+                          label: "Creative"
+                        },
+                        {
+                          text: "Write a React hook for fetch",
+                          icon: <MdOutlineCode size={18} className="text-blue-400" />,
+                          label: "Code"
+                        },
+                        {
+                          text: "Analyze this idea: Local-first AI",
+                          icon: <MdOutlineLightbulb size={18} className="text-yellow-400" />,
+                          label: "Strategy"
+                        }
+                      ].map((suggestion, index) => (
+                        <motion.button
+                          key={suggestion.text}
+                          whileHover={{ scale: 1.02, backgroundColor: "rgba(40, 41, 42, 0.8)" }}
+                          whileTap={{ scale: 0.98 }}
+                          onClick={() => updateInput(suggestion.text)}
+                          className="group p-4 bg-[#1e1f20]/50 backdrop-blur-md rounded-2xl text-left transition-all border border-[#28292a] hover:border-[#3c4043] flex flex-col gap-2 relative overflow-hidden"
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="p-1.5 bg-[#131314] rounded-lg border border-[#28292a] group-hover:border-primary/30 transition-colors">
+                              {suggestion.icon}
+                            </div>
+                            <span className="text-[9px] uppercase tracking-widest text-[#5f6368] font-bold group-hover:text-primary transition-colors">
+                              {suggestion.label}
+                            </span>
+                          </div>
+                          <span className="text-[13px] font-medium text-[#e3e3e3] group-hover:text-white transition-colors">
+                            {suggestion.text}
+                          </span>
+                          <div className="absolute top-0 right-0 p-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <MdOutlineAutoAwesome size={12} className="text-primary/50" />
+                          </div>
+                        </motion.button>
+                      ))}
+                    </motion.div>
+                  </motion.div>
+                ) : (
+                  activeChat?.messages.map((msg, idx) => (
+                    <ChatMessage
+                      key={msg.id}
+                      msg={msg}
+                      activeChatId={activeChatId}
+                      generatingChatId={generatingChatId}
+                      isLoading={isLoading}
+                      isLast={idx === activeChat.messages.length - 1}
+                    />
+                  ))
+                )}
+                <div ref={messagesEndRef} />
+              </div>
+            </div>
+
+            {/* Input Area */}
+            <div className="p-4 md:p-5 bg-gradient-to-t from-[#131314] via-[#131314] to-transparent">
+              <div className="max-w-4xl mx-auto relative">
+                <AnimatePresence>
+                  {isLoading && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 5, scale: 0.95 }}
+                      transition={{ duration: 0.2 }}
+                      className="absolute bottom-full left-0 mb-4 z-10"
+                    >
+                      <div className="flex items-center gap-3 px-4 py-2 bg-[#1e1f20]/80 backdrop-blur-md border border-[#28292a] rounded-2xl shadow-xl">
+                        <div className="flex gap-1.5">
+                          <motion.div
+                            animate={{ opacity: [0.4, 1, 0.4] }}
+                            transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                            className="w-1.5 h-1.5 bg-primary rounded-full"
+                          />
+                          <motion.div
+                            animate={{ opacity: [0.4, 1, 0.4] }}
+                            transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut", delay: 0.2 }}
+                            className="w-1.5 h-1.5 bg-primary rounded-full"
+                          />
+                          <motion.div
+                            animate={{ opacity: [0.4, 1, 0.4] }}
+                            transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut", delay: 0.4 }}
+                            className="w-1.5 h-1.5 bg-primary rounded-full"
+                          />
+                        </div>
+                        <span className="text-[11px] font-medium text-[#9aa0a6]">Gemma 4 is thinking...</span>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {error && (
+                  <div className="absolute bottom-full left-0 right-0 mb-4 p-3 bg-red-900/20 border border-red-900/50 text-red-400 text-xs rounded-lg flex items-center gap-2 z-20">
+                    <MdOutlineClose size={16} className="shrink-0" />
+                    <span>{error}</span>
+                  </div>
+                )}
+                <div className="flex flex-col bg-[#1e1f20] rounded-2xl border border-[#28292a] focus-within:border-[#3c4043] transition-all shadow-lg overflow-hidden">
+                  <div className="px-4 pt-2">
+                    <textarea
+                      ref={textareaRef}
+                      value={input}
+                      onChange={(e) => updateInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          handleSendMessage();
+                        }
+                      }}
+                      placeholder="Message Gemma 4..."
+                      maxLength={inputCharLimit}
+                      className="w-full bg-transparent py-4 resize-none focus:outline-none text-sm max-h-[160px] overflow-y-auto custom-scrollbar"
+                      rows={1}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between px-3 pb-3 pt-1">
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setIsReasoningEnabled(!isReasoningEnabled)}
                         className={cn(
-                          "text-[10px] font-bold tracking-tighter tabular-nums px-1.5 py-0.5 rounded-md border transition-colors",
-                          input.length >= inputCharLimit
-                            ? "bg-red-500/10 border-red-500/30 text-red-500"
-                            : "bg-zinc-800/50 border-zinc-700/50 text-[#5f6368]"
+                          "p-1.5 rounded-lg transition-all duration-300 relative group flex items-center gap-2",
+                          isReasoningEnabled
+                            ? "text-primary bg-primary/10 border border-primary/20"
+                            : "text-[#5f6368] hover:text-[#9aa0a6] hover:bg-[#28292a] border border-transparent"
                         )}
                       >
-                        {input.length.toLocaleString()}/{inputCharLimit.toLocaleString()}
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
+                        <MdOutlineLightbulb size={18} />
+                        <span className="text-[12px] font-medium pr-1">
+                          {isReasoningEnabled ? "Thinking On" : "Thinking Off"}
+                        </span>
+                        {isReasoningEnabled && (
+                          <motion.div
+                            layoutId="input-glow"
+                            className="absolute inset-0 bg-primary/10 blur-sm rounded-lg -z-10"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                          />
+                        )}
+                      </button>
+                    </div>
 
-                  <button
-                    onClick={handleSendMessage}
-                    disabled={!input.trim() || isLoading}
-                    className={cn(
-                      "p-2 rounded-xl transition-all shrink-0",
-                      input.trim() && !isLoading
-                        ? "bg-primary text-white shadow-lg shadow-primary/20"
-                        : "text-[#5f6368] cursor-not-allowed"
-                    )}
-                  >
-                    {isLoading ? <MdOutlineRefresh size={22} className="animate-spin" /> : <MdSend size={22} />}
-                  </button>
+                    <div className="flex items-center gap-3">
+                      <AnimatePresence>
+                        {input.length > 3000 && (
+                          <motion.div
+                            initial={{ opacity: 0, x: 5 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: 5 }}
+                            className={cn(
+                              "text-[10px] font-bold tracking-tighter tabular-nums px-1.5 py-0.5 rounded-md border transition-colors",
+                              input.length >= inputCharLimit
+                                ? "bg-red-500/10 border-red-500/30 text-red-500"
+                                : "bg-zinc-800/50 border-zinc-700/50 text-[#5f6368]"
+                            )}
+                          >
+                            {input.length.toLocaleString()}/{inputCharLimit.toLocaleString()}
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+
+                      <button
+                        onClick={handleSendMessage}
+                        disabled={!input.trim() || isLoading}
+                        className={cn(
+                          "p-2 rounded-xl transition-all shrink-0",
+                          input.trim() && !isLoading
+                            ? "bg-primary text-white shadow-lg shadow-primary/20"
+                            : "text-[#5f6368] cursor-not-allowed"
+                        )}
+                      >
+                        {isLoading ? <MdOutlineRefresh size={22} className="animate-spin" /> : <MdSend size={22} />}
+                      </button>
+                    </div>
+                  </div>
                 </div>
+                <p className="mt-2 text-[10px] text-center text-[#5f6368] leading-relaxed max-w-lg mx-auto">
+                  This demo is not created, endorsed, or affiliated with Google or Google DeepMind.
+                  <br />
+                  Gemma may display inaccurate info, so double-check its responses.
+                  <span className="ml-1 font-medium text-primary/80">Running 100% on-device.</span>
+                </p>
               </div>
             </div>
-            <p className="mt-2 text-[10px] text-center text-[#5f6368] leading-relaxed max-w-lg mx-auto">
-              This demo is not created, endorsed, or affiliated with Google or Google DeepMind.
-              <br />
-              Gemma may display inaccurate info, so double-check its responses.
-              <span className="ml-1 font-medium text-primary/80">Running 100% on-device.</span>
-            </p>
-            </div>
-          </div>
-        </main>
-      </>
-    )}
+          </main>
+        </>
+      )}
     </div>
   );
 }

@@ -15,7 +15,7 @@ This application was built using **Google AI Studio** and **Antigravity**. It is
 
 ## ✨ Features
 
-- **🚀 100% On-Device Inference**: Uses MediaPipe and WebGPU to run Gemma 4 directly in your browser.
+- **🚀 100% On-Device Inference**: Uses LiteRT-LM and WebGPU to run Gemma 4 directly in your browser.
 - **🔒 Privacy-First**: No servers, no tracking, and no data collection. Your conversations stay on your machine.
 - **📥 PWA & Offline Support**: Optimized with a Service Worker that uses a **Stale-While-Revalidate (SWR)** strategy for instant loads and automatic updates.
 - **⚡ High-Performance**: Leverages modern browser capabilities for low-latency reasoning on supported hardware.
@@ -42,7 +42,7 @@ While the UI is responsive, you will encounter the following limitations on mobi
 ## 🛠️ Tech Stack
 
 - **Framework**: [Next.js 16](https://nextjs.org/) (App Router & Turbopack)
-- **Model Inference**: [MediaPipe GenAI](https://developers.google.com/mediapipe/solutions/genai/llm_inference) (100% On-Device WebGPU)
+- **Model Inference**: [LiteRT-LM](https://developers.google.com/edge/litert-lm/js) (100% On-Device WebGPU)
 - **Styling**: [Tailwind CSS 4](https://tailwindcss.com/) & Vanilla CSS
 - **Animations**: [Motion](https://motion.dev/) (formerly Framer Motion)
 - **Icons**: [React Icons](https://react-icons.github.io/react-icons/) (Material Design)

@@ -8,6 +8,7 @@ import {
   MdDeleteOutline,
   MdOutlineDeleteForever,
   MdSend,
+  MdStop,
   MdOutlineAccountCircle,
   MdOutlineMenu,
   MdOutlineClose,
@@ -41,6 +42,7 @@ interface Message {
   reasoning?: string;
   reasoningDuration?: number;
   isReasoningComplete?: boolean;
+  isCancelled?: boolean;
 }
 
 interface Chat {
@@ -50,7 +52,7 @@ interface Chat {
   updatedAt: number;
 }
 
-const MODEL_URL = "https://egekaan.dev/uploads/gemma-4-E4B-it-web.task";
+const MODEL_URL = "https://egekaan.dev/uploads/gemma-4-E4B-it-web.litertlm";
 
 const GemmaIcon = ({ size = 24, className = "" }: { size?: number, className?: string }) => (
   <svg
@@ -248,66 +250,93 @@ const ChatMessage = ({
     }
   }), [isGeneratingCurrent]);
 
-  return (
-    <div className={cn(
-      "flex gap-4 md:gap-6",
-      msg.role === 'user' ? "flex-row-reverse" : "flex-row"
-    )}>
-      <div className={cn(
-        "w-10 h-10 rounded-full flex items-center justify-center shrink-0",
-        msg.role === 'user' ? "bg-primary" : "bg-[#1e1f20] border border-[#28292a]"
-      )}>
-        {msg.role === 'user' ? <MdOutlineAccountCircle size={28} /> : <GemmaIcon size={28} className="text-primary" />}
-      </div>
-      <div className={cn(
-        "flex-1 min-w-0 space-y-2",
-        msg.role === 'user' ? "flex flex-col items-end" : "flex flex-col items-start"
-      )}>
-        {msg.role === 'assistant' && msg.reasoning && (
-          <ReasoningBlock
-            reasoning={msg.reasoning}
-            duration={msg.reasoningDuration}
-            isComplete={msg.isReasoningComplete}
-          />
-        )}
+  const isCanceledAtThought = msg.isCancelled && !msg.content;
+  const hasContent = msg.content || (msg.reasoning && !isCanceledAtThought);
 
-        {(msg.role === 'user' || msg.content) && (
-          <>
-            <div className={cn(
-              "block max-w-full p-4 rounded-2xl text-sm leading-relaxed min-w-0 shadow-sm transition-all duration-500 break-words",
-              msg.role === 'user'
-                ? "bg-[#28292a] text-white rounded-tr-none ml-4"
-                : "bg-[#1e1f20] text-[#e3e3e3] border border-[#28292a] rounded-tl-none mr-4"
-            )}>
-              <div className="prose prose-invert max-w-full prose-p:leading-relaxed min-w-0">
-                <ReactMarkdown
-                  remarkPlugins={[remarkGfm, remarkMath]}
-                  rehypePlugins={[
-                    [rehypeKatex, { strict: false, output: 'html', throwOnError: false }],
-                    rehypeHighlight,
-                    rehypeRaw
-                  ]}
-                  components={markdownComponents}
-                >
-                  {msg.content || (isLoading && msg.role === 'assistant' && !msg.reasoning ? "..." : "")}
-                </ReactMarkdown>
-              </div>
-            </div>
-            <div className="flex items-center gap-3 px-1">
-              <div className="text-[10px] text-[#5f6368]">
-                {msg.timestamp ? formatTime(msg.timestamp) : ''}
-              </div>
-              {msg.role === 'assistant' && !isGeneratingCurrent && msg.content && (
-                <CopyButton
-                  text={msg.content}
-                  className="text-[#5f6368] hover:text-primary p-0 bg-transparent border-none"
-                  iconSize={14}
-                />
-              )}
-            </div>
-          </>
-        )}
+  if (!hasContent && msg.role === 'assistant' && msg.isCancelled) {
+    return (
+      <div className="flex items-center gap-4 my-6 text-[#5f6368] select-none">
+        <div className="flex-1 border-t border-[#28292a]"></div>
+        <span className="text-[10px] font-bold tracking-widest text-red-500/40 uppercase">
+          Generation canceled
+        </span>
+        <div className="flex-1 border-t border-[#28292a]"></div>
       </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className={cn(
+        "flex gap-4 md:gap-6",
+        msg.role === 'user' ? "flex-row-reverse" : "flex-row"
+      )}>
+        <div className={cn(
+          "w-10 h-10 rounded-full flex items-center justify-center shrink-0",
+          msg.role === 'user' ? "bg-primary" : "bg-[#1e1f20] border border-[#28292a]"
+        )}>
+          {msg.role === 'user' ? <MdOutlineAccountCircle size={28} /> : <GemmaIcon size={28} className="text-primary" />}
+        </div>
+        <div className={cn(
+          "flex-1 min-w-0 space-y-2",
+          msg.role === 'user' ? "flex flex-col items-end" : "flex flex-col items-start"
+        )}>
+          {msg.role === 'assistant' && msg.reasoning && !isCanceledAtThought && (
+            <ReasoningBlock
+              reasoning={msg.reasoning}
+              duration={msg.reasoningDuration}
+              isComplete={msg.isReasoningComplete}
+            />
+          )}
+
+          {(msg.role === 'user' || msg.content) && (
+            <>
+              <div className={cn(
+                "block max-w-full p-4 rounded-2xl text-sm leading-relaxed min-w-0 shadow-sm transition-all duration-500 break-words",
+                msg.role === 'user'
+                  ? "bg-[#28292a] text-white rounded-tr-none ml-4"
+                  : "bg-[#1e1f20] text-[#e3e3e3] border border-[#28292a] rounded-tl-none mr-4"
+              )}>
+                <div className="prose prose-invert max-w-full prose-p:leading-relaxed min-w-0">
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm, remarkMath]}
+                    rehypePlugins={[
+                      [rehypeKatex, { strict: false, output: 'html', throwOnError: false }],
+                      rehypeHighlight,
+                      rehypeRaw
+                    ]}
+                    components={markdownComponents}
+                  >
+                    {msg.content || (isLoading && msg.role === 'assistant' && !msg.reasoning ? "..." : "")}
+                  </ReactMarkdown>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 px-1">
+                <div className="text-[10px] text-[#5f6368]">
+                  {msg.timestamp ? formatTime(msg.timestamp) : ''}
+                </div>
+                {msg.role === 'assistant' && !isGeneratingCurrent && msg.content && (
+                  <CopyButton
+                    text={msg.content}
+                    className="text-[#5f6368] hover:text-primary p-0 bg-transparent border-none"
+                    iconSize={14}
+                  />
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
+      {msg.isCancelled && (
+        <div className="flex items-center gap-4 my-6 text-[#5f6368] select-none">
+          <div className="flex-1 border-t border-[#28292a]"></div>
+          <span className="text-[10px] font-bold tracking-widest text-red-500/40 uppercase">
+            Generation canceled
+          </span>
+          <div className="flex-1 border-t border-[#28292a]"></div>
+        </div>
+      )}
     </div>
   );
 };
@@ -331,6 +360,7 @@ export default function Home() {
   const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 0);
   const [loadingInfoIndex, setLoadingInfoIndex] = useState(0);
   const [isMobile, setIsMobile] = useState(false);
+  const isCancelledRef = useRef(false);
 
   // Detect mobile device
   useEffect(() => {
@@ -349,7 +379,7 @@ export default function Home() {
     { title: "On-Device Processing", desc: "Your data never leaves your machine. Computation happens locally in your GPU." },
     { title: "Deep Thinking", desc: "Advanced reasoning mode allows the model to think through complex problems step-by-step." },
     { title: "Self-Caching", desc: "Once downloaded, the model is stored in your browser's persistent cache." },
-    { title: "High Performance", desc: "Leveraging MediaPipe LLM Inference for low-latency browser AI." },
+    { title: "High Performance", desc: "Leveraging LiteRT-LM for low-latency browser AI." },
     { title: "Total Privacy", desc: "Works even without an internet connection after the initialization phase." }
   ], []);
 
@@ -383,6 +413,24 @@ export default function Home() {
 
     // Clean up empty chats on load
     setChats(prev => prev.filter(c => c.messages && c.messages.length > 0));
+
+    // Clean up legacy .task files from cache (ensure only .litertlm remains)
+    if (typeof window !== 'undefined' && 'caches' in window) {
+      caches.open('gemma-model-cache').then((cache) => {
+        cache.keys().then((requests) => {
+          requests.forEach((request) => {
+            const url = request.url;
+            if (url.includes('.task')) {
+              cache.delete(request).then(
+                (success) => {
+                  if (success) console.log('Successfully removed cached legacy model:', url);
+                }
+              ).catch(err => console.error('Failed to delete cached legacy model:', err));
+            }
+          });
+        });
+      }).catch(err => console.warn('Could not access model cache for cleanup:', err));
+    }
 
     const handleResize = () => setWindowWidth(window.innerWidth);
     window.addEventListener('resize', handleResize);
@@ -433,7 +481,7 @@ export default function Home() {
     initModel();
   }, [mounted]);
 
-  // Prevent tab closing during generation
+  // Prevent tab closing during generation and cancel active generation on unload
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (isLoading) {
@@ -441,8 +489,21 @@ export default function Home() {
       }
     };
 
+    const handleUnload = () => {
+      if (isLoading) {
+        LLMService.cancel();
+      }
+    };
+
     window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('pagehide', handleUnload);
+    window.addEventListener('unload', handleUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('pagehide', handleUnload);
+      window.removeEventListener('unload', handleUnload);
+    };
   }, [isLoading]);
 
   const activeChat = useMemo(() =>
@@ -453,9 +514,18 @@ export default function Home() {
     [...chats].sort((a, b) => b.updatedAt - a.updatedAt),
     [chats]);
 
+  const prevActiveChatIdRef = useRef<string | null>(null);
+
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [activeChat?.messages]);
+    const chatChanged = prevActiveChatIdRef.current !== activeChatId;
+    prevActiveChatIdRef.current = activeChatId;
+
+    if (chatChanged) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'instant' });
+    } else {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [activeChat?.messages, activeChatId]);
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -530,8 +600,10 @@ export default function Home() {
     };
 
     try {
-      // Prompt emphasizing the user's intent with conversation fingerprint for context consistency
-      const titlePrompt = `<|turn>system You are a professional summarizer. Your goal is to capture the USER'S INTENT and summarize their message into a SINGLE brief title (max 5 words). (Conversation Fingerprint: ${chatId || Date.now()})
+      const messages = [
+        {
+          role: 'system',
+          content: `You are a professional summarizer. Your goal is to capture the USER'S INTENT and summarize their message into a SINGLE brief title (max 5 words). (Conversation Fingerprint: ${chatId || Date.now()})
 RULES:
 1. Respond ONLY with the title text itself.
 2. NO numbering (e.g., do NOT start with "1." or "1 ").
@@ -540,9 +612,15 @@ RULES:
 5. NO mentioning or including the "Conversation Fingerprint".
 6. Use Title Case.
 7. Use the SAME language as the user input (e.g., if user writes in Turkish, title must be Turkish). Use English as a fallback if you're unsure.
-8. NO emojis.<turn|>\n<|turn>user ${firstMessage}<turn|>\n<|turn>model `;
+8. NO emojis.`
+        },
+        {
+          role: 'user',
+          content: firstMessage
+        }
+      ];
 
-      const generatedTitle = await LLMService.generateResponse(MODEL_URL, titlePrompt);
+      const generatedTitle = await LLMService.generateResponse(MODEL_URL, messages);
 
       // Clean up the title more robustly
       let cleanTitle = generatedTitle
@@ -566,9 +644,15 @@ RULES:
     }
   };
 
+  const handleStopGeneration = () => {
+    isCancelledRef.current = true;
+    LLMService.cancel();
+  };
+
   const handleSendMessage = async () => {
     if (!input.trim() || input.length > inputCharLimit || isLoading || isInitializing) return;
 
+    let assistantMessageId = "";
     let currentChatId = activeChatId;
     let currentChats = [...chats];
 
@@ -651,27 +735,30 @@ RULES:
       // Only add the <|think|> token if enabled, without adding extra textual instructions
       const systemInstruction = `${isReasoningEnabled ? '<|think|>' : ''}You are Gemma 4 E4B, a high-performance model created by Google DeepMind and featured in this text-only chat demo by Ege Kaan Işık. Your goal is to be a brilliant, supportive, and witty collaborator providing accurate text responses in the same language as the user's input. Avoid filler phrases, generic AI introductions, or unnecessary prose, and use standard Markdown for all formatting. Your guiding principle is that intelligence-per-parameter is the ultimate metric for exploring the capabilities of this model. Your messages should not contain any 'Self-Correction/Analysis' or internal reasoning blocks. IMPORTANT: Generate ONLY the Assistant's response. Do NOT generate any 'User:' turns or additional dialogue. Stop immediately after finishing your answer. (Conversation Fingerprint: ${activeChatId || Date.now()})`;
 
-      // Construct prompt with context using Gemma 4 formatting
-      const systemPrompt = `<|turn>system ${systemInstruction}<turn|>`;
+      // Construct structured message objects for the LiteRT-LM preface (LiteRT-LM best practice)
+      const structuredMessages = [
+        { role: 'system', content: systemInstruction }
+      ];
 
-      // Clean previous assistant messages from reasoning blocks (<|channel>...<channel|>) 
-      // to prevent the model from seeing its own previous thoughts in the context window.
-      const context = allMessages.map(m => {
+      for (const m of allMessages) {
         let content = m.content;
+        // Clean previous assistant messages from reasoning blocks (<|channel>...<channel|>) 
+        // to prevent the model from seeing its own previous thoughts in the context window.
         if (m.role === 'assistant') {
           content = content.replace(/<\|channel>[\s\S]*?<channel\|>/g, '').trim();
         }
-        return `<|turn>${m.role === 'user' ? 'user' : 'model'} ${content}<turn|>`;
-      }).join('\n');
-
-      const fullPrompt = `${systemPrompt}\n${context}\n<|turn>model `;
+        structuredMessages.push({
+          role: m.role === 'assistant' ? 'assistant' : m.role,
+          content: content
+        });
+      }
 
       // If this was the first exchange (only 1 user message in history), generate a creative title BEFORE the main response
       if (allMessages.length === 1) {
         await generateChatTitle(currentChatId!, userMessage.content);
       }
 
-      const assistantMessageId = (Date.now() + 1).toString();
+      assistantMessageId = (Date.now() + 1).toString();
 
       // Add placeholder assistant message
       setChats(prev => prev.map(c => {
@@ -694,7 +781,7 @@ RULES:
       let reasoningStartTime: number | null = null;
       let reasoningEndTime: number | null = null;
 
-      await LLMService.generateResponse(MODEL_URL, fullPrompt, (partial, done) => {
+      await LLMService.generateResponse(MODEL_URL, structuredMessages, (partial, done) => {
         // Parse reasoning blocks and final content
         let reasoning = "";
         let finalContent = partial;
@@ -756,7 +843,32 @@ RULES:
 
     } catch (err: any) {
       console.error(err);
-      setError(err.message || "Failed to generate response. Make sure your browser supports WebGPU.");
+      if (isCancelledRef.current) {
+        setChats(prev => prev.map(c => {
+          const isTargetChat = c.id === activeChatId || (c.messages.length > 0 && c.messages[c.messages.length - 1].id === assistantMessageId);
+          if (isTargetChat) {
+            const msgs = c.messages || [];
+            const lastMsg = msgs[msgs.length - 1];
+            if (lastMsg && lastMsg.id === assistantMessageId) {
+              return {
+                ...c,
+                messages: [
+                  ...msgs.slice(0, -1),
+                  {
+                    ...lastMsg,
+                    isCancelled: true,
+                    isReasoningComplete: true
+                  }
+                ]
+              };
+            }
+          }
+          return c;
+        }));
+        isCancelledRef.current = false;
+      } else {
+        setError(err.message || "Failed to generate response. Make sure your browser supports WebGPU.");
+      }
     } finally {
       setIsLoading(false);
       setGeneratingChatId(null);
@@ -1263,6 +1375,7 @@ RULES:
                     <textarea
                       ref={textareaRef}
                       value={input}
+                      disabled={isLoading}
                       onChange={(e) => updateInput(e.target.value)}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' && !e.shiftKey) {
@@ -1270,9 +1383,9 @@ RULES:
                           handleSendMessage();
                         }
                       }}
-                      placeholder="Message Gemma 4..."
+                      placeholder={isLoading ? "Gemma 4 is generating..." : "Message Gemma 4..."}
                       maxLength={inputCharLimit}
-                      className="w-full bg-transparent py-4 resize-none focus:outline-none text-sm max-h-[160px] overflow-y-auto custom-scrollbar"
+                      className="w-full bg-transparent py-4 resize-none focus:outline-none text-sm max-h-[160px] overflow-y-auto custom-scrollbar disabled:opacity-50 disabled:cursor-not-allowed"
                       rows={1}
                     />
                   </div>
@@ -1281,8 +1394,9 @@ RULES:
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => setIsReasoningEnabled(!isReasoningEnabled)}
+                        disabled={isLoading}
                         className={cn(
-                          "p-1.5 rounded-lg transition-all duration-300 relative group flex items-center gap-2",
+                          "p-1.5 rounded-lg transition-all duration-300 relative group flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed",
                           isReasoningEnabled
                             ? "text-primary bg-primary/10 border border-primary/20"
                             : "text-[#5f6368] hover:text-[#9aa0a6] hover:bg-[#28292a] border border-transparent"
@@ -1323,16 +1437,18 @@ RULES:
                       </AnimatePresence>
 
                       <button
-                        onClick={handleSendMessage}
-                        disabled={!input.trim() || isLoading}
+                        onClick={isLoading ? handleStopGeneration : handleSendMessage}
+                        disabled={!isLoading && !input.trim()}
                         className={cn(
                           "p-2 rounded-xl transition-all shrink-0",
-                          input.trim() && !isLoading
+                          isLoading
+                            ? "bg-red-600 hover:bg-red-500 text-white shadow-lg shadow-red-500/20"
+                            : input.trim()
                             ? "bg-primary text-white shadow-lg shadow-primary/20"
                             : "text-[#5f6368] cursor-not-allowed"
                         )}
                       >
-                        {isLoading ? <MdOutlineRefresh size={22} className="animate-spin" /> : <MdSend size={22} />}
+                        {isLoading ? <MdStop size={22} /> : <MdSend size={22} />}
                       </button>
                     </div>
                   </div>

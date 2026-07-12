@@ -1,29 +1,107 @@
-import { LlmInference, FilesetResolver } from '@mediapipe/tasks-genai';
+import { Engine, Message } from '@litert-lm/core';
+
+// Global Console Interceptor: Redirects noisy WASM/LiteRT initialization log messages and non-critical warnings to console.info
+if (typeof window !== 'undefined') {
+  const originalConsoleError = console.error;
+  console.error = function (...args: any[]) {
+    const msg = args.join(' ');
+    const isLiteRtLog = 
+      msg.toLowerCase().includes('info') || 
+      msg.toLowerCase().includes('warning') ||
+      msg.toLowerCase().includes('lite') || 
+      msg.toLowerCase().includes('xnnpack') ||
+      msg.toLowerCase().includes('npu_registry') ||
+      msg.toLowerCase().includes('mel_filterbank') ||
+      msg.toLowerCase().includes('klitert') ||
+      msg.toLowerCase().includes('cancel') ||
+      /^[IWE]\d{4}\s\d{2}:\d{2}:\d{2}/.test(msg.trim());
+
+    if (isLiteRtLog) {
+      console.info('[LiteRT Log]', ...args);
+      return;
+    }
+    originalConsoleError.apply(console, args);
+  };
+
+  const originalConsoleWarn = console.warn;
+  console.warn = function (...args: any[]) {
+    const msg = args.join(' ');
+    const isLiteRtLog = 
+      msg.toLowerCase().includes('info') || 
+      msg.toLowerCase().includes('warning') ||
+      msg.toLowerCase().includes('lite') || 
+      msg.toLowerCase().includes('xnnpack') ||
+      msg.toLowerCase().includes('npu_registry') ||
+      msg.toLowerCase().includes('mel_filterbank') ||
+      msg.toLowerCase().includes('klitert') ||
+      msg.toLowerCase().includes('cancel') ||
+      /^[IWE]\d{4}\s\d{2}:\d{2}:\d{2}/.test(msg.trim());
+
+    if (isLiteRtLog) {
+      console.info('[LiteRT Log]', ...args);
+      return;
+    }
+    originalConsoleWarn.apply(console, args);
+  };
+}
+
+// ==========================================
+// Standalone Helper Functions
+// ==========================================
+
+/**
+ * Verifies that a local blob URL is readable (helps capture OOM early).
+ */
+async function verifyBlobUrl(url: string): Promise<boolean> {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) return false;
+    const reader = response.body?.getReader();
+    if (reader) {
+      await reader.cancel();
+      return true;
+    }
+    return false;
+  } catch (e) {
+    return false;
+  }
+}
+
+/**
+ * Extracts plain text content from a Message returned by LiteRT-LM.
+ */
+function extractTextContent(msg: any): string {
+  if (!msg) return "";
+  if (typeof msg.content === 'string') {
+    return msg.content;
+  }
+  if (Array.isArray(msg.content)) {
+    let text = "";
+    for (const part of msg.content) {
+      if (part && part.type === 'text' && typeof part.text === 'string') {
+        text += part.text;
+      }
+    }
+    return text;
+  }
+  return "";
+}
+
+// ==========================================
+// LLM Service Wrapper
+// ==========================================
 
 export class LLMService {
-  private static instance: LlmInference | null = null;
+  private static instance: Engine | null = null;
   private static isInitializing = false;
   private static CACHE_NAME = 'gemma-model-cache';
+  private static activeConversation: any | null = null;
 
+  /**
+   * Retrieves and caches the model file locally using the Cache Storage API.
+   */
   static async getCachedModel(modelUrl: string, onProgress?: (progress: number, status: string) => void): Promise<string> {
     const isCacheSupported = typeof window !== 'undefined' && 'caches' in window;
-
-    // Helper to verify a blob URL is actually readable (catches ERR_BLOB_OUT_OF_MEMORY Early)
-    const verifyBlobUrl = async (url: string): Promise<boolean> => {
-      try {
-        const response = await fetch(url);
-        if (!response.ok) return false;
-        // Probe the first chunk only to verify readable stream
-        const reader = response.body?.getReader();
-        if (reader) {
-          await reader.cancel();
-          return true;
-        }
-        return false;
-      } catch (e) {
-        return false;
-      }
-    };
 
     if (isCacheSupported) {
       try {
@@ -159,14 +237,16 @@ export class LLMService {
     }
   }
 
-  static async getInstance(modelUrl: string, onProgress?: (progress: number, status: string) => void): Promise<LlmInference> {
+  /**
+   * Initializes and compiles the model engine.
+   */
+  static async getInstance(modelUrl: string, onProgress?: (progress: number, status: string) => void): Promise<Engine> {
     if (this.instance) {
       if (onProgress) onProgress(100, 'Model ready');
       return this.instance;
     }
 
     if (this.isInitializing) {
-      // Wait for existing initialization
       while (this.isInitializing) {
         await new Promise(resolve => setTimeout(resolve, 100));
       }
@@ -178,20 +258,14 @@ export class LLMService {
 
     this.isInitializing = true;
     try {
-      const fileset = await FilesetResolver.forGenAiTasks(
-        "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-genai/wasm"
-      );
-
       const localModelUrl = await this.getCachedModel(modelUrl, onProgress);
       if (onProgress) onProgress(100, 'Preparing GPU');
-      this.instance = await LlmInference.createFromOptions(fileset, {
-        baseOptions: {
-          modelAssetPath: localModelUrl,
-        },
-        maxTokens: 8192,
-        temperature: 0.8,
-        topK: 40,
-        randomSeed: Math.floor(Math.random() * 2147483647),
+
+      this.instance = await Engine.create({
+        model: localModelUrl,
+        mainExecutorSettings: {
+          maxNumTokens: 8192,
+        }
       });
 
       if (onProgress) onProgress(100, 'Model ready');
@@ -201,36 +275,156 @@ export class LLMService {
     }
   }
 
+  /**
+   * Generates text response using structured prefaces and streaming APIs.
+   */
   static async generateResponse(
     modelUrl: string,
-    prompt: string,
+    messages: Message[],
     onPartialResult?: (partial: string, done: boolean) => void
   ): Promise<string> {
-    const llm = await this.getInstance(modelUrl);
+    const engine = await this.getInstance(modelUrl);
+
+    if (messages.length === 0) {
+      throw new Error("No messages provided for generation.");
+    }
+
+    const lastMessage = messages[messages.length - 1];
+    const lastPromptStr = typeof lastMessage.content === 'string' ? lastMessage.content : '';
+    const prefaceMessages = messages.slice(0, messages.length - 1);
+
+    const conversation = await engine.createConversation({
+      preface: {
+        messages: prefaceMessages,
+      },
+      sessionConfig: {
+        samplerParams: {
+          temperature: 0.8,
+          seed: Math.floor(Math.random() * 2147483647),
+        }
+      }
+    });
+    this.activeConversation = conversation;
 
     if (onPartialResult) {
-      return new Promise((resolve, reject) => {
+      return new Promise(async (resolve, reject) => {
+        let currentChannel: string | null = null;
         let fullText = "";
+        let reader: any = null;
         try {
-          llm.generateResponse(prompt, (partial, done) => {
-            fullText += partial;
-            onPartialResult(fullText, done);
-            if (done) {
-              resolve(fullText);
+          const stream = conversation.sendMessageStreaming(lastPromptStr);
+          reader = stream.getReader();
+
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            if (value) {
+              let text = "";
+              let hasThought = false;
+
+              if (value.channels && typeof value.channels === 'object' && value.channels.thought) {
+                hasThought = true;
+                text = value.channels.thought;
+              } else {
+                text = extractTextContent(value);
+              }
+
+              if (hasThought) {
+                if (currentChannel !== 'thought') {
+                  if (currentChannel !== null) {
+                    fullText += `\n<channel|>\n`;
+                  }
+                  fullText += `<|channel>thought\n`;
+                  currentChannel = 'thought';
+                }
+                fullText += text;
+              } else {
+                if (currentChannel === 'thought') {
+                  fullText += `\n<channel|>\n`;
+                  currentChannel = null;
+                }
+                fullText += text;
+              }
+
+              onPartialResult(fullText, false);
             }
-          });
+          }
+
+          if (currentChannel === 'thought') {
+            fullText += `\n<channel|>\n`;
+          }
+
+          onPartialResult(fullText, true);
+          resolve(fullText);
         } catch (err) {
           reject(err);
+        } finally {
+          if (reader) {
+            try {
+              reader.releaseLock();
+            } catch (e) {
+              console.warn('Error releasing stream reader lock:', e);
+            }
+          }
+          try {
+            await conversation.delete();
+          } catch (e) {
+            console.warn('Error deleting conversation:', e);
+          }
+          if (this.activeConversation === conversation) {
+            this.activeConversation = null;
+          }
         }
       });
     } else {
-      return llm.generateResponse(prompt);
+      try {
+        const message = await conversation.sendMessage(lastPromptStr);
+        let text = "";
+        if (message.channels && typeof message.channels === 'object' && message.channels.thought) {
+          const thought = message.channels.thought;
+          const mainContent = extractTextContent(message);
+          text = `<|channel>thought\n${thought}\n<channel|>\n${mainContent}`;
+        } else {
+          text = extractTextContent(message);
+        }
+        return text;
+      } finally {
+        try {
+          await conversation.delete();
+        } catch (e) {
+          console.warn('Error deleting conversation:', e);
+        }
+        if (this.activeConversation === conversation) {
+          this.activeConversation = null;
+        }
+      }
     }
   }
 
-  static close() {
+  /**
+   * Cancels any active generation on the conversation instance.
+   */
+  static cancel() {
+    if (this.activeConversation) {
+      try {
+        this.activeConversation.cancel();
+      } catch (e) {
+        console.warn('Error cancelling active conversation:', e);
+      }
+      this.activeConversation = null;
+    }
+  }
+
+  /**
+   * Deletes and releases the initialized Engine instance.
+   */
+  static async close() {
     if (this.instance) {
-      this.instance.close();
+      try {
+        await this.instance.delete();
+      } catch (e) {
+        console.warn('Error deleting engine instance:', e);
+      }
       this.instance = null;
     }
   }

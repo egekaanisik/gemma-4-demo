@@ -72,15 +72,28 @@ self.addEventListener('install', (event) => {
 
 self.addEventListener('activate', (event) => {
     event.waitUntil(
-        caches.keys().then((keys) => {
-            return Promise.all(
-                keys.map((key) => {
-                    if (key !== CACHE_NAME && key !== 'gemma-model-cache') {
-                        return caches.delete(key);
-                    }
-                })
-            );
-        })
+        Promise.all([
+            caches.keys().then((keys) => {
+                return Promise.all(
+                    keys.map((key) => {
+                        if (key !== CACHE_NAME && key !== 'gemma-model-cache') {
+                            return caches.delete(key);
+                        }
+                    })
+                );
+            }),
+            caches.open('gemma-model-cache').then((cache) => {
+                return cache.keys().then((requests) => {
+                    return Promise.all(
+                        requests.map((request) => {
+                            if (request.url.includes('.task')) {
+                                return cache.delete(request);
+                            }
+                        })
+                    );
+                });
+            })
+        ])
     );
     self.clients.claim();
 });
@@ -89,7 +102,7 @@ self.addEventListener('fetch', (event) => {
     const url = new URL(event.request.url);
 
     // Filter out huge model or non-http
-    if (url.pathname.endsWith('.task') || !url.protocol.startsWith('http')) return;
+    if (url.pathname.endsWith('.task') || url.pathname.endsWith('.litertlm') || !url.protocol.startsWith('http')) return;
 
     // Fast response for anything already in PRE_CACHE or same-origin static
     const isInternal = (
